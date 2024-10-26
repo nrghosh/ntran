@@ -4,16 +4,9 @@ import (
     "database/sql"
     "fmt"
     "log"
-    _ "github.com/mattn/go-sqlite3" // DuckDB's Go driver behaves similarly to SQLite
 )
 
-func SerialExecution(dbPath string, n int, transactionType string) {
-    db, err := sql.Open("sqlite3", dbPath)
-    if err != nil {
-        log.Fatalf("Failed to open database: %v", err)
-    }
-    defer db.Close()
-
+func SerialExecution(db *sql.DB, n int, transactionType string) {
     for i := 0; i < n; i++ {
         runTransaction(db, transactionType)
     }
@@ -42,4 +35,3 @@ func runTransaction(db *sql.DB, transactionType string) {
 
     fmt.Println("Transaction completed.")
 }
-

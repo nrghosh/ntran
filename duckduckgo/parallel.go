@@ -4,56 +4,42 @@ import (
     "database/sql"
     "fmt"
     "log"
-    "os"
-    // "path/filepath"
-    "io"
     "sync"
-    _ "github.com/mattn/go-sqlite3"
 )
 
-func ParallelExecution(dbPath string, n int, transactionType string) {
+func ParallelExecution(db *sql.DB, n int, transactionType string) {
     var wg sync.WaitGroup
-    wg.Add(n)
-
     for i := 0; i < n; i++ {
-        go func(i int) {
+        wg.Add(1)
+        go func() {
             defer wg.Done()
-
-            copiedDBPath := copyDatabase(dbPath, i)
-            db, err := sql.Open("sqlite3", copiedDBPath)
-            if err != nil {
-                log.Fatalf("Failed to open copied database: %v", err)
-            }
-            defer db.Close()
-
-            runTransaction(db, transactionType)
-
-            os.Remove(copiedDBPath) // Cleanup copied DB file after use
-        }(i)
+            runParallelTransaction(db, transactionType)
+        }()
     }
-
     wg.Wait()
+    fmt.Println("All parallel transactions completed.")
 }
 
-func copyDatabase(dbPath string, id int) string {
-    copiedDBPath := fmt.Sprintf("state_copy_%d.db", id)
-    input, err := os.Open(dbPath)
-    if err != nil {
-        log.Fatalf("Failed to open original database: %v", err)
-    }
-    defer input.Close()
-
-    output, err := os.Create(copiedDBPath)
-    if err != nil {
-        log.Fatalf("Failed to create copied database: %v", err)
-    }
-    defer output.Close()
-
-    _, err = io.Copy(output, input)
-    if err != nil {
-        log.Fatalf("Failed to copy database: %v", err)
+func runParallelTransaction(db *sql.DB, transactionType string) {
+    var query string
+    if transactionType == "short" {
+        query = "UPDATE users SET balance = balance + 10 WHERE id = 1;"
+    } else {
+        query = "UPDATE users SET balance = balance + 10 WHERE id > 0;"
     }
 
-    return copiedDBPath
+    tx, err := db.Begin()
+    if err != nil {
+        log.Fatalf("Failed to begin transaction: %v", err)
+    }
+
+    _, err = tx.Exec(query)
+    if err != nil {
+        tx.Rollback()
+        log.Fatalf("Transaction failed: %v", err)
+    } else {
+        tx.Commit()
+    }
+
+    fmt.Println("Parallel transaction completed.")
 }
-
