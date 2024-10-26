@@ -60,6 +60,9 @@ func main() {
     fmt.Println("Starting serial execution...")
     SerialExecution(db, 10, transactionType) // Runs 10 serial transactions
 
+    // Initialize db env again
+    initDatabase()
+
     // Run parallel execution with multiple instances
     fmt.Println("Starting parallel execution...")
     err = ParallelExecution(dbPath, 10, transactionType)
