@@ -4,12 +4,17 @@ import (
     "database/sql"
     "fmt"
     "log"
+    "time"
 )
 
 func SerialExecution(db *sql.DB, n int, transactionType string) {
+    startTime := time.Now()
     for i := 0; i < n; i++ {
         runTransaction(db, transactionType)
     }
+    b := RecordBenchmark(startTime, transactionType, "serial")
+    PrintBenchmark(b)
+    LogBenchmark(b)
 }
 
 func runTransaction(db *sql.DB, transactionType string) {
