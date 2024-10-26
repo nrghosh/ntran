@@ -7,8 +7,7 @@ Super simple MVP for benchmarking performance of DuckDB when attempting to recon
 1. Ensure DuckDB is installed ```brew install duckdb```
 2. If state.db exists, run ```duckdb state.db```
 3. Else, to start up duckdb and initialize with ```schema.sql```, run
-    ```duckdb state.db```
-    and from duckdb console ```.read schema.sql```
+    ```duckdb state.db``` and from duckdb console ```.read schema.sql```
 4. Run ```.tables``` and ``` select * from users; ``` from duckdb console to validate what has been inserted into the duckdb instance
 
 ### TODO
