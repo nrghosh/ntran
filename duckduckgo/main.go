@@ -48,7 +48,7 @@ func main() {
     // Initialize db environment
     initDatabase()
 
-    transactionType := "short" // Set to "short" or "long" for different query types
+    transactionType := "long" // Set to "short" or "long" for different query types
 
     // Connect to newly initialized DuckDB instance
     db, err := sql.Open("duckdb", dbPath)
@@ -60,6 +60,10 @@ func main() {
     fmt.Println("Starting serial execution...")
     SerialExecution(db, 10, transactionType) // Runs 10 serial transactions
 
+    // Run parallel execution with multiple instances
     fmt.Println("Starting parallel execution...")
-    ParallelExecution(db, 10, transactionType) // Runs 10 parallel transactions
+    err = ParallelExecution(dbPath, 10, transactionType)
+    if err != nil {
+        log.Fatalf("Parallel execution failed: %v", err)
+    }
 }

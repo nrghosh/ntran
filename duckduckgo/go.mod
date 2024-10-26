@@ -2,7 +2,7 @@ module duckduckgo
 
 go 1.21.4
 
-require github.com/mattn/go-sqlite3 v1.14.24
+require github.com/marcboeker/go-duckdb v1.8.2
 
 require (
 	github.com/apache/arrow/go/v17 v17.0.0 // indirect
@@ -10,7 +10,6 @@ require (
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
-	github.com/marcboeker/go-duckdb v1.8.2 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
