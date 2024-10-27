@@ -36,9 +36,8 @@ plt.xlabel("Transaction Count")
 plt.ylabel("Elapsed Time (s)")
 plt.legend(title="Mode and Type")
 
-# Save the figure with timestamp
-timestamp = create_timestamp()
-figure_path = os.path.join("figures", f"transaction_analysis_{timestamp}.png")
+# Save the figure with timestamp (use DB count and timestamp from csv title)
+figure_path = os.path.join("figures", f"figure_{latest_csv.split("/")[1].replace(".csv", "")}.png")
 plt.savefig(figure_path, dpi=300, bbox_inches='tight')
 print(f"Figure saved to: {figure_path}")
 plt.close()

@@ -56,6 +56,26 @@ func initDatabase() (*sql.DB, error) {
 	return db, nil
 }
 
+func GetTableRowCount(dbPath string, tableName string) (int64, error) {
+	// Connect to DuckDB
+	db, err := sql.Open("duckdb", dbPath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Query to count rows
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)
+
+	var count int64
+	err = db.QueryRow(query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count rows: %v", err)
+	}
+
+	return count, nil
+}
+
 func RecordBenchmark(startTime time.Time, transactionType, executionMode string, transactionCount int) Benchmark {
 	elapsedTime := time.Since(startTime).Seconds()
 	return Benchmark{
@@ -116,9 +136,15 @@ func main() {
 	executionModes := []string{"serial", "parallel"}
 	transactionCounts := []int{10, 25, 50, 100, 200, 500}
 
-    // Write results to custom timestamped csv in results/
-    timestamp := time.Now().Format("2006-01-02_15-04-05")
-	file, err := os.Create(fmt.Sprintf("results/experiment_results-%s.csv", timestamp))
+	// get length of DB (may vary across runs)
+	initDatabase()
+	count, err := GetTableRowCount(dbPath, "users")
+	if err != nil {
+		fmt.Errorf("Failed to get length of database")
+	}
+	// Write results to custom timestamped csv in results/
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+	file, err := os.Create(fmt.Sprintf("results/experiment_results-dbcount=%d-%s.csv", count, timestamp))
 
 	if err != nil {
 		log.Fatalf("Failed to create CSV file: %v", err)
@@ -149,12 +175,12 @@ func main() {
 
 	// After experiments run successfuly, run python analysis script
 	// exec.Command("python3 analyze.py")
-    cmd := exec.Command("python3", "analyze.py")
-    // Connect stdout and stderr to see Python output
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
+	cmd := exec.Command("python3", "analyze.py")
+	// Connect stdout and stderr to see Python output
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-    // Run the command
-    cmd.Run()
+	// Run the command
+	cmd.Run()
 	log.Printf("Python script run")
 }
