@@ -2,7 +2,7 @@ package main
 
 import (
     "database/sql"
-    "fmt"
+    // "fmt"
     "log"
     // "time"
 )
@@ -38,5 +38,5 @@ func runTransaction(db *sql.DB, transactionType string) {
         tx.Commit()
     }
 
-    fmt.Println("Transaction completed.")
+    // fmt.Println("Transaction completed.")
 }
