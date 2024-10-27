@@ -112,7 +112,7 @@ func runExperiment(config ExperimentConfig, csvWriter *csv.Writer) error {
 func main() {
     transactionTypes := []string{"short", "long"}
     executionModes := []string{"serial", "parallel"}
-    transactionCounts := []int{10, 25, 50, 100, 200, 500}
+    transactionCounts := []int{10, 25, 50, 100, 200, 500, 750}
 
     file, err := os.Create("experiment_results.csv")
     if err != nil {
