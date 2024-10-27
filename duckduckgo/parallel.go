@@ -184,9 +184,9 @@ func runTransactionOnInstance(instance *DatabaseInstance, transactionType string
 
     var query string
     if transactionType == "short" {
-        query = "UPDATE users SET balance = balance + 10 WHERE id = 1;"
+        query = ShortQuery
     } else {
-        query = "UPDATE users SET balance = balance + 10 WHERE id > 0;"
+        query = LongQuery
     }
     
     tx, err := instance.DB.Begin()

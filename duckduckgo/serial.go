@@ -20,9 +20,9 @@ func SerialExecution(db *sql.DB, n int, transactionType string) {
 func runTransaction(db *sql.DB, transactionType string) {
     var query string
     if transactionType == "short" {
-        query = "UPDATE users SET balance = balance + 10 WHERE id = 1;"
+        query = ShortQuery
     } else {
-        query = "UPDATE users SET balance = balance + 10 WHERE id > 0;" // Long-running query
+        query = LongQuery
     }
 
     tx, err := db.Begin()
