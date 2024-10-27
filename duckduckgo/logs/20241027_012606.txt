@@ -1,0 +1,2 @@
+Mode: parallel | Transaction: short | # Transactions: 500 | Duration: 2.762097375s
+Mode: serial | Transaction: long | # Transactions: 500 | Duration: 116.339083ms

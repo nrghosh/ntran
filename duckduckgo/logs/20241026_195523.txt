@@ -1,0 +1,2 @@
+Mode: serial | Transaction: short | Duration: 3.729417ms
+Mode: parallel | Transaction: short | Duration: 6.383667ms
