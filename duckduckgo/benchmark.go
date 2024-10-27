@@ -11,31 +11,18 @@ type BenchmarkResult struct {
     EndTime     time.Time
     Transaction string
     Mode string
+    TransactionCount int
 }
 
-func RecordBenchmark(startTime time.Time, transaction string, mode string) BenchmarkResult {
-    // filename := time.Now().Format("20060102_150405") + ".txt"
-    // Open file in write mode, create if it doesn't exist
-	// file, err := os.Create(fmt.Sprintf("%s/%s", "logs", filename))
-	
-	// defer file.Close()
-
-	
-    result :=  BenchmarkResult{
-        StartTime:   startTime,
-        EndTime:     time.Now(),
-        Transaction: transaction,
-        Mode:        mode,
-    }
-
-    // Write duration + txn type to the file
-	// _, err = file.WriteString("This is a sample line of text.")
-	
-
-	// fmt.Println("Log written successfully:", filename)
-
-    return result
-}
+// func RecordBenchmark(startTime time.Time, transaction string, mode string, transactionCount int) BenchmarkResult {
+//     return BenchmarkResult{
+//         StartTime:   startTime,
+//         EndTime:     time.Now(),
+//         Transaction: transaction,
+//         Mode:        mode,
+//         TransactionCount: transactionCount,
+//     }
+// }
 
 func PrintBenchmark(result BenchmarkResult) {
     duration := result.EndTime.Sub(result.StartTime)
@@ -63,7 +50,7 @@ func LogBenchmark(result BenchmarkResult) {
 
 	// Write info to log file
     duration := result.EndTime.Sub(result.StartTime)
-	_, err = fmt.Fprintf(file, "Mode: %s | Transaction: %s | Duration: %v\n", result.Mode, result.Transaction, duration)
+	_, err = fmt.Fprintf(file, "Mode: %s | Transaction: %s | # Transactions: %d | Duration: %v\n", result.Mode, result.Transaction, result.TransactionCount, duration)
 	if err != nil {
 		fmt.Println("Error writing to logfile:", err)
 		return

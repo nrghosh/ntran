@@ -2,71 +2,143 @@ package main
 
 import (
     "database/sql"
+    "encoding/csv"
     "fmt"
     "log"
     "os"
-
+    "time"
     _ "github.com/marcboeker/go-duckdb" // DuckDB driver import
 )
 
-const dbPath = "./state.db"
-const schemaPath = "./schema.sql"
+const (
+    dbPath     = "./state.db"
+    schemaPath = "./schema.sql"
+)
 
-// Initializes the DuckDB database
-func initDatabase() {
-    // Remove the existing state.db file if it exists
+type ExperimentConfig struct {
+    TransactionType   string
+    TransactionCount  int
+    ExecutionMode     string
+}
+
+type Benchmark struct {
+    TransactionType   string
+    ExecutionMode     string
+    TransactionCount  int
+    ElapsedTime       float64
+}
+
+func initDatabase() (*sql.DB, error) {
     if _, err := os.Stat(dbPath); err == nil {
-        fmt.Println("Removing existing database file...")
         if err := os.Remove(dbPath); err != nil {
-            log.Fatalf("Failed to delete existing database file: %v", err)
+            return nil, fmt.Errorf("failed to delete existing database file: %v", err)
         }
     }
 
-    // Connect to DuckDB (this will create a new empty database file)
     db, err := sql.Open("duckdb", dbPath)
     if err != nil {
-        log.Fatalf("Failed to create new DuckDB database: %v", err)
+        return nil, fmt.Errorf("failed to create new DuckDB database: %v", err)
     }
-    defer db.Close()
 
-    // Read the schema file
     schema, err := os.ReadFile(schemaPath)
     if err != nil {
-        log.Fatalf("Failed to read schema file: %v", err)
+        db.Close()
+        return nil, fmt.Errorf("failed to read schema file: %v", err)
     }
-
-    // Execute the schema to set up the initial structure of the database
-    _, err = db.Exec(string(schema))
-    if err != nil {
-        log.Fatalf("Failed to initialize database schema: %v", err)
+    if _, err := db.Exec(string(schema)); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("failed to initialize database schema: %v", err)
     }
 
     fmt.Println("Database initialized successfully with schema.")
+    return db, nil
+}
+
+func RecordBenchmark(startTime time.Time, transactionType, executionMode string, transactionCount int) Benchmark {
+    elapsedTime := time.Since(startTime).Seconds()
+    return Benchmark{
+        TransactionType:  transactionType,
+        ExecutionMode:    executionMode,
+        TransactionCount: transactionCount,
+        ElapsedTime:      elapsedTime,
+    }
+}
+
+func logExperiment(csvWriter *csv.Writer, benchmark Benchmark) {
+    record := []string{
+        benchmark.TransactionType,
+        benchmark.ExecutionMode,
+        fmt.Sprintf("%d", benchmark.TransactionCount),
+        fmt.Sprintf("%.2f", benchmark.ElapsedTime),
+    }
+    if err := csvWriter.Write(record); err != nil {
+        log.Fatalf("Failed to write CSV record: %v", err)
+    }
+    csvWriter.Flush()
+}
+
+func runExperiment(config ExperimentConfig, csvWriter *csv.Writer) error {
+    fmt.Printf("Running %s execution with transaction type '%s' and count %d...\n", config.ExecutionMode, config.TransactionType, config.TransactionCount)
+
+    startTime := time.Now()
+    switch config.ExecutionMode {
+    case "serial":
+        db, err := initDatabase()
+        if err != nil {
+            return err
+        }
+        defer db.Close()
+        SerialExecution(db, config.TransactionCount, config.TransactionType)
+    case "parallel":
+        db, err := initDatabase()
+        if err != nil {
+            return err
+        }
+        defer db.Close()
+        if err := ParallelExecution(dbPath, config.TransactionCount, config.TransactionType); err != nil {
+            return fmt.Errorf("parallel execution failed: %v", err)
+        }
+    default:
+        return fmt.Errorf("unknown execution mode: %s", config.ExecutionMode)
+    }
+
+    benchmark := RecordBenchmark(startTime, config.TransactionType, config.ExecutionMode, config.TransactionCount)
+    logExperiment(csvWriter, benchmark)
+
+    fmt.Printf("Execution completed in %.2f seconds\n", benchmark.ElapsedTime)
+    return nil
 }
 
 func main() {
-    // Initialize db environment
-    initDatabase()
+    transactionTypes := []string{"short", "long"}
+    executionModes := []string{"serial", "parallel"}
+    transactionCounts := []int{10, 25, 50, 100, 200, 500}
 
-    transactionType := "long" // Set to "short" or "long" for different query types
-
-    // Connect to newly initialized DuckDB instance
-    db, err := sql.Open("duckdb", dbPath)
+    file, err := os.Create("experiment_results.csv")
     if err != nil {
-        log.Fatalf("Failed to open DuckDB database: %v", err)
+        log.Fatalf("Failed to create CSV file: %v", err)
     }
-    defer db.Close()
+    defer file.Close()
+    csvWriter := csv.NewWriter(file)
+    defer csvWriter.Flush()
 
-    fmt.Println("Starting serial execution...")
-    SerialExecution(db, 10, transactionType) // Runs 10 serial transactions
+    headers := []string{"TransactionType", "ExecutionMode", "TransactionCount", "ElapsedTime"}
+    if err := csvWriter.Write(headers); err != nil {
+        log.Fatalf("Failed to write CSV headers: %v", err)
+    }
 
-    // Initialize db env again
-    initDatabase()
-
-    // Run parallel execution with multiple instances
-    fmt.Println("Starting parallel execution...")
-    err = ParallelExecution(dbPath, 10, transactionType)
-    if err != nil {
-        log.Fatalf("Parallel execution failed: %v", err)
+    for _, transactionType := range transactionTypes {
+        for _, executionMode := range executionModes {
+            for _, transactionCount := range transactionCounts {
+                config := ExperimentConfig{
+                    TransactionType:  transactionType,
+                    ExecutionMode:    executionMode,
+                    TransactionCount: transactionCount,
+                }
+                if err := runExperiment(config, csvWriter); err != nil {
+                    log.Printf("Experiment failed for %v: %v", config, err)
+                }
+            }
+        }
     }
 }

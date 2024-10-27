@@ -11,7 +11,7 @@ import (
     "sort"
     "sync"
     "database/sql"
-    "time"
+    // "time"
 )
 
 // DatabaseInstance represents a single DuckDB instance
@@ -116,7 +116,6 @@ func ParallelExecution(originalDBPath string, n int, transactionType string) err
     }
     
     fmt.Printf("\nStarting %d parallel transactions (%s type)...\n", n, transactionType)
-    startTime := time.Now()
     // Run transactions in parallel
     for i := 0; i < n; i++ {
         wg.Add(1)
@@ -174,10 +173,6 @@ func ParallelExecution(originalDBPath string, n int, transactionType string) err
     }
 
     fmt.Println("\nParallel execution completed successfully!")
-    b := RecordBenchmark(startTime, transactionType, "parallel")
-    PrintBenchmark(b)
-
-    LogBenchmark(b)
     return nil
 }
 
