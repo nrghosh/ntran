@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"golang.org/x/exp/rand"
 )
 
 type NeonDBClient struct {
@@ -101,6 +103,7 @@ func (c NeonDBClient) createBranch(name string) string {
 }
 
 func (c NeonDBClient) Execute(statementSeries [][]Statement) error {
+	rand.Seed(uint64(time.Now().UnixNano()))
 	for i, series := range statementSeries {
 		benchmark := Benchmark{}
 		benchmark.Start()
@@ -150,10 +153,11 @@ func (c NeonDBClient) Execute(statementSeries [][]Statement) error {
 				states = append(states, v)
 			}
 		}
-		// dummy "consensus" step here. need to figure out which to choose here.
-		// should _not_ close db that wins consensus. instead, make that the new
-		// mainConnStr (I think).
-		log.Default().Println(states[0])
+		// dummy "consensus" step here -- take a random one.
+		// should _not_ close db that wins consensus.
+		// instead, make that the new mainConnStr (I think).
+		idx := rand.Intn(len(states))
+		log.Default().Printf("idx: %v; state: %v\n", idx, states[idx])
 		benchmark.End()
 		benchmark.Log(i)
 	}
