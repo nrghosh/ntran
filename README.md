@@ -16,4 +16,6 @@ Authors: Nikhil Ghosh, Peter McNeely, Matthew Roger Nelson
 
 [System Design](https://miro.com/app/board/uXjVLX50vSk=/)
 
+[November Check-in Slideshow](https://docs.google.com/presentation/d/1zIHVCHv7LhV2vj2HQJPOUswjcYzohjk0gxkfWOCQsEM/edit?usp=sharing)
+
 [Progress/TA Sync Doc](https://docs.google.com/document/d/1ljm8fCeT25hCvfs82JGpiVdmlQjrY5A9XsO8veiTBX8/edit?usp=sharing)
