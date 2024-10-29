@@ -13,7 +13,7 @@ type Policy interface {
 	// GenerateSQL - creates the SQL commands and queries to be benchmarked
 	GenerateSQL() ([][]Statement, error)
 	// Execute - executes each SQL command and query
-	Execute(commands [][]Statement) error
+	Execute(statementSeries [][]Statement) error
 }
 
 func CreateClient(policy string) (Policy, error) {

@@ -20,6 +20,6 @@ func (c SerialClient) GenerateSQL() ([][]Statement, error) {
 	return nil, fmt.Errorf("SerialClient unimplemented")
 }
 
-func (c SerialClient) Execute(commands [][]Statement) error {
+func (c SerialClient) Execute(statementSeries [][]Statement) error {
 	return fmt.Errorf("SerialClient unimplemented")
 }

@@ -16,7 +16,7 @@ func (c DuckDBClient) Scaffold() error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("CREATE TABLE users (id INTEGER PRIMARY KEY, balance INTEGER)")
+	_, err = db.Exec("CREATE TABLE users (id INTEGER PRIMARY KEY, balance INTEGER);")
 	if err != nil {
 		return err
 	}
@@ -27,8 +27,8 @@ func (c DuckDBClient) Scaffold() error {
 func (c DuckDBClient) GenerateSQL() ([][]Statement, error) {
 	statements := [][]Statement{
 		{
-			{Command: "INSERT INTO users (id, balance) VALUES (1, 100)", Query: "SELECT * FROM users"},
-			{Command: "INSERT INTO users (id, balance) VALUES (1, 200)", Query: "SELECT * FROM users"},
+			{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
+			{Command: "INSERT INTO users (id, balance) VALUES (1, 200);", Query: "SELECT * FROM users;"},
 		},
 	}
 
