@@ -19,6 +19,10 @@ type NeonDBClient struct {
 	mainConnStr string
 }
 
+func (c NeonDBClient) GetName() string {
+	return "neondb"
+}
+
 func (c NeonDBClient) Scaffold() error {
 	err := godotenv.Load()
 	if err != nil {
@@ -38,15 +42,18 @@ func (c NeonDBClient) Scaffold() error {
 	return nil
 }
 
-func (c NeonDBClient) GenerateSQL() ([][]Statement, error) {
-	statements := [][]Statement{
+func (c NeonDBClient) GenerateSQL() ([]TestCase, error) {
+	testCases := []TestCase{
 		{
-			{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
-			{Command: "INSERT INTO users (id, balance) VALUES (2, 200);", Query: "SELECT * FROM users;"},
+			Name: "Short Insert",
+			Statements: []Statement{
+				{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
+				{Command: "INSERT INTO users (id, balance) VALUES (2, 200);", Query: "SELECT * FROM users;"},
+			},
 		},
 	}
 
-	return statements, nil
+	return testCases, nil
 }
 
 func (c NeonDBClient) deleteBranch(name string) {
@@ -102,16 +109,21 @@ func (c NeonDBClient) createBranch(name string) string {
 	return ""
 }
 
-func (c NeonDBClient) Execute(statementSeries [][]Statement) error {
+func (c NeonDBClient) Execute(testCases []TestCase) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
-	for i, series := range statementSeries {
-		benchmark := Benchmark{}
+	for i, testCase := range testCases {
+		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
 		benchmark.Start()
 
 		var states []interface{}
-		var rows pgx.Rows
 
-		for j, statement := range series {
+		// cannot run the neon commands in parallel
+		// https://community.neon.tech/t/project-already-has-running-operations-scheduling-of-new-ones-is-prohibited/242/3.
+		// alternatively, we could create the compute nodes serially, then execute the queries in parallel, then delete the
+		// compute nodes serially.
+		for j, statement := range testCase.Statements {
+
+			var rows pgx.Rows
 			if statement.Command != "" {
 				db := fmt.Sprintf("db_%v_%v", i, j)
 				connStr := c.createBranch(db)

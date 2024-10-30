@@ -9,6 +9,10 @@ import (
 type DuckDBClient struct {
 }
 
+func (c DuckDBClient) GetName() string {
+	return "duckdb"
+}
+
 func (c DuckDBClient) Scaffold() error {
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
@@ -24,22 +28,25 @@ func (c DuckDBClient) Scaffold() error {
 	return nil
 }
 
-func (c DuckDBClient) GenerateSQL() ([][]Statement, error) {
-	statements := [][]Statement{
+func (c DuckDBClient) GenerateSQL() ([]TestCase, error) {
+	testCases := []TestCase{
 		{
-			{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
-			{Command: "INSERT INTO users (id, balance) VALUES (1, 200);", Query: "SELECT * FROM users;"},
+			Name: "Short Insert",
+			Statements: []Statement{
+				{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
+				{Command: "INSERT INTO users (id, balance) VALUES (1, 200);", Query: "SELECT * FROM users;"},
+			},
 		},
 	}
 
-	return statements, nil
+	return testCases, nil
 }
 
-func (c DuckDBClient) Execute(statementSeries [][]Statement) error {
-	for i, series := range statementSeries {
-		benchmark := Benchmark{}
+func (c DuckDBClient) Execute(testCases []TestCase) error {
+	for i, testCase := range testCases {
+		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
 		benchmark.Start()
-		for _, statement := range series {
+		for _, statement := range testCase.Statements {
 			if statement.Command != "" {
 				// we are executing a command, which will change the state of the database
 				// so we should create a file copy (an improvement could be that we somehow
