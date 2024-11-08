@@ -6,6 +6,8 @@ import (
 )
 
 type Benchmark struct {
+	Policy    string
+	TestCase  string
 	startTime time.Time
 	endTime   time.Time
 }
@@ -21,5 +23,5 @@ func (b *Benchmark) End() {
 func (b *Benchmark) Log(series int) {
 	duration := b.endTime.Sub(b.startTime)
 	logger := log.Default()
-	logger.Printf("Series: %v | Duration: %v\n", series, duration)
+	logger.Printf("Policy: %v | Test Case: %v | Series: %v | Duration: %v\n", b.Policy, b.TestCase, series, duration)
 }
