@@ -19,8 +19,11 @@ import (
  */
 type SerialClient struct {
 	mainConnStr string
-	// probably also load basic credentials from the environment here
-	port string
+	port        string
+}
+
+func (c SerialClient) GetName() string {
+	return "serial-client"
 }
 
 func (c SerialClient) Scaffold() error {
@@ -29,7 +32,7 @@ func (c SerialClient) Scaffold() error {
 		return fmt.Errorf("error loading .env file")
 	}
 	c.mainConnStr = os.Getenv("SERIAL_DATABASE_URL")
-	c.port = os.Getenv("SERIAL_DATABASE_PORT") // probably can remove
+	c.port = os.Getenv("SERIAL_DATABASE_PORT")
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
 		return err
@@ -43,63 +46,106 @@ func (c SerialClient) Scaffold() error {
 	return nil
 }
 
-func (c SerialClient) GenerateSQL() ([][]Statement, error) {
-	statements := [][]Statement{
+func (c SerialClient) GenerateSQL() ([]TestCase, error) {
+	testCases := []TestCase{
 		{
-			{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
-			{Command: "INSERT INTO users (id, balance) VALUES (2, 200);", Query: "SELECT * FROM users;"},
+			// Name for the test case for logging purposes
+			Name: "Short Insert",
+			Statements: []Statement{
+				// Statement is single pair of COmmand and QUery. Command makes some DB change, Query then
+				// grabs the resulting state for us to assess. Each Statement is essentially one resulting
+				// operation to record
+
+				// Randomly select one of these for each TestCase.
+				// So from a given []Statement, after rolling all of these back and recording the state,
+				// we will select one of the Statement randomly to keep, and re-execute it
+				{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
+				{Command: "INSERT INTO users (id, balance) VALUES (2, 200);", Query: "SELECT * FROM users;"},
+			},
 		},
 	}
 
-	return statements, nil
+	return testCases, nil
 }
 
-func (c SerialClient) Execute(statementSeries [][]Statement) error {
-	// Plan
-	// 	Parent Transaction
-	//		Begin parent transaction for consistent snapshot across all queries
-	// 	Nested Transactions
-	// 		For each query
-	// 			Begin nested transaction, execute query
-	// 			Record checksum or rating for state outcome
-	// 			Rollback nested transaction
-	// Re-execute chosen query
-	// 	Choose “correct” query to re-execute based on recorded checksum or state outcome rating
-	// 	Begin nested transaction for the query
-	// 	Commit nested transaction
-	// Clean-up
-	// 	Commit parent transaction
-	//
+func (c SerialClient) Execute(testCases []TestCase) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
-	for i, series := range statementSeries {
-		benchmark := Benchmark{}
+	for i, testCase := range testCases {
+		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
 		benchmark.Start()
 
 		var states []interface{}
-		var rows pgx.Rows
 
-		for j, statement := range series {
-			if statement.Command == "" {
-				continue
+		// Required modifications:
+		// For each testcase, we select one correct Statement
+		// Pseudocode for each testcase
+		// Begin nested transactions
+		// Execute the command
+		// Execute the Query
+		// Append the result of Query to states
+		// Rollback nested transaction, but keep the states changes
+		//
+		// Once all Statement handled:
+		// Randomly select one of the Statement
+		// Re-execute the Command and the Query
+		// Commit the parent transaction
+		//
+		// OVERALL OUTLINE:
+		// Open parent transaction
+		// For each statement
+		//    open nested transaction
+		//    execute command
+		//    execute query
+		//    record result of query into states slice
+		//    rollback nested transaction
+		// Choose the "correct" statement randomly
+		// Re-execute chosen command
+		// Re-execute chosen query
+		// Commit parent transactions
+
+		for j, statement := range testCase.Statements {
+
+			var rows pgx.Rows
+			if statement.Command != "" {
+				/*
+				 * Execute the command to change DB
+				 * Query state of database to record result
+				 */
+				fmt.Sprintf("db_%v_%v", i, j)
+
+				conn, err := pgx.Connect(context.Background(), c.mainConnStr)
+				if err != nil {
+					return err
+				}
+				defer conn.Close(context.Background())
+
+				// Command to make change to database
+				_, err = conn.Exec(context.Background(), statement.Command)
+				if err != nil {
+					return err
+				}
+				// Query to grab state of database
+				rows, err = conn.Query(context.Background(), statement.Query)
+				if err != nil {
+					return err
+				}
+			} else {
+				/*
+				 * Query DB state only, no change
+				 */
+				conn, err := pgx.Connect(context.Background(), c.mainConnStr)
+				if err != nil {
+					return err
+				}
+				defer conn.Close(context.Background())
+
+				rows, err = conn.Query(context.Background(), statement.Query)
+				if err != nil {
+					return err
+				}
 			}
-			db := fmt.Sprintf("db_%v_%v", i, j)
 
-			conn, err := pgx.Connect(context.Background(), c.mainConnStr)
-			if err != nil {
-				return err
-			}
-			defer conn.Close(context.Background())
-
-			_, err = conn.Exec(context.Background(), statement.Command)
-			if err != nil {
-				return err
-			}
-
-			rows, err = conn.Query(context.Background(), statement.Query)
-			if err != nil {
-				return err
-			}
-
+			// Record state from the Query
 			if rows.Next() {
 				v, err := rows.Values()
 				if err != nil {
@@ -109,13 +155,13 @@ func (c SerialClient) Execute(statementSeries [][]Statement) error {
 			}
 		}
 
-		// Randomly choose one, re-execute the query, and commit
+		// States is now updated
+
+		// dummy "consensus" step here -- take a random one.
 		idx := rand.Intn(len(states))
 		log.Default().Printf("idx: %v; state: %v\n", idx, states[idx])
 		benchmark.End()
 		benchmark.Log(i)
 	}
 	return nil
-
-	return fmt.Errorf("SerialClient unimplemented")
 }
