@@ -49,16 +49,8 @@ func (c SerialClient) Scaffold() error {
 func (c SerialClient) GenerateSQL() ([]TestCase, error) {
 	testCases := []TestCase{
 		{
-			// Name for the test case for logging purposes
 			Name: "Short Insert",
 			Statements: []Statement{
-				// Statement is single pair of COmmand and QUery. Command makes some DB change, Query then
-				// grabs the resulting state for us to assess. Each Statement is essentially one resulting
-				// operation to record
-
-				// Randomly select one of these for each TestCase.
-				// So from a given []Statement, after rolling all of these back and recording the state,
-				// we will select one of the Statement randomly to keep, and re-execute it
 				{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
 				{Command: "INSERT INTO users (id, balance) VALUES (2, 200);", Query: "SELECT * FROM users;"},
 			},
@@ -70,76 +62,50 @@ func (c SerialClient) GenerateSQL() ([]TestCase, error) {
 
 func (c SerialClient) Execute(testCases []TestCase) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
+
+	// Share DB connection across all TestCases
+	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(context.Background())
+
 	for i, testCase := range testCases {
 		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
 		benchmark.Start()
 
+		// Start parent transaction
+		parentTxn, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+		if err != nil {
+			log.Fatalf("Failed to begin parent transaction: %v\n", err)
+		}
+
 		var states []interface{}
-
-		// Required modifications:
-		// For each testcase, we select one correct Statement
-		// Pseudocode for each testcase
-		// Begin nested transactions
-		// Execute the command
-		// Execute the Query
-		// Append the result of Query to states
-		// Rollback nested transaction, but keep the states changes
-		//
-		// Once all Statement handled:
-		// Randomly select one of the Statement
-		// Re-execute the Command and the Query
-		// Commit the parent transaction
-		//
-		// OVERALL OUTLINE:
-		// Open parent transaction
-		// For each statement
-		//    open nested transaction
-		//    execute command
-		//    execute query
-		//    record result of query into states slice
-		//    rollback nested transaction
-		// Choose the "correct" statement randomly
-		// Re-execute chosen command
-		// Re-execute chosen query
-		// Commit parent transactions
-
 		for j, statement := range testCase.Statements {
+
+			// Start nested transaction, rollback to this savepoint once state collected
+			_, err := parentTxn.Exec(context.Background(), "SAVEPOINT nested_txn")
+			if err != nil {
+				log.Fatalf("Failed to create savepoint for nested transaction: %v\n", err)
+			}
 
 			var rows pgx.Rows
 			if statement.Command != "" {
-				/*
-				 * Execute the command to change DB
-				 * Query state of database to record result
-				 */
 				fmt.Sprintf("db_%v_%v", i, j)
 
-				conn, err := pgx.Connect(context.Background(), c.mainConnStr)
+				// Command from TestCase
+				_, err = parentTxn.Exec(context.Background(), statement.Command)
 				if err != nil {
 					return err
 				}
-				defer conn.Close(context.Background())
-
-				// Command to make change to database
-				_, err = conn.Exec(context.Background(), statement.Command)
-				if err != nil {
-					return err
-				}
-				// Query to grab state of database
-				rows, err = conn.Query(context.Background(), statement.Query)
+				// Query from TestCase
+				rows, err = parentTxn.Query(context.Background(), statement.Query)
 				if err != nil {
 					return err
 				}
 			} else {
-				/*
-				 * Query DB state only, no change
-				 */
-				conn, err := pgx.Connect(context.Background(), c.mainConnStr)
-				if err != nil {
-					return err
-				}
-				defer conn.Close(context.Background())
-
-				rows, err = conn.Query(context.Background(), statement.Query)
+				// Query only, no Command
+				rows, err = parentTxn.Query(context.Background(), statement.Query)
 				if err != nil {
 					return err
 				}
@@ -153,13 +119,35 @@ func (c SerialClient) Execute(testCases []TestCase) error {
 				}
 				states = append(states, v)
 			}
+
+			// Rollback nested transaction
+			_, rollbackErr := parentTxn.Exec(context.Background(), "ROLLBACK TO SAVEPOINT nested_txn")
+			if rollbackErr != nil {
+				log.Fatalf("Failed to rollback to savepoint for nested transaction: %v\n", rollbackErr)
+			}
 		}
 
-		// States is now updated
-
-		// dummy "consensus" step here -- take a random one.
+		// For now, choose random state as correct state and log it
 		idx := rand.Intn(len(states))
 		log.Default().Printf("idx: %v; state: %v\n", idx, states[idx])
+
+		// Command from chosen Statement
+		_, err = parentTxn.Exec(context.Background(), testCase.Statements[idx].Command)
+		if err != nil {
+			return err
+		}
+		// Query from Chosen Statement, may do something with this later, placeholder
+		_, err = parentTxn.Query(context.Background(), testCase.Statements[idx].Query)
+		if err != nil {
+			return err
+		}
+
+		// Commit parent transaction with applied changes from one chosen Statement
+		err = parentTxn.Commit(context.Background())
+		if err != nil {
+			log.Fatalf("Failed to commit parent transaction: %v\n", err)
+		}
+
 		benchmark.End()
 		benchmark.Log(i)
 	}
