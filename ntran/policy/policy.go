@@ -7,13 +7,20 @@ type Statement struct {
 	Query   string
 }
 
+type TestCase struct {
+	Name       string
+	Statements []Statement
+}
+
 type Policy interface {
+	// GetName - gets the name of the policy
+	GetName() string
 	// Scaffold - creates the database schema
 	Scaffold() error
 	// GenerateSQL - creates the SQL commands and queries to be benchmarked
-	GenerateSQL() ([][]Statement, error)
+	GenerateSQL() ([]TestCase, error)
 	// Execute - executes each SQL command and query
-	Execute(statementSeries [][]Statement) error
+	Execute(testCases []TestCase) error
 }
 
 func CreateClient(policy string) (Policy, error) {
