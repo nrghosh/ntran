@@ -15,15 +15,15 @@ import (
 /*
  * SerialClient - executes its statements serially, under
  * one snapshost isolation level transaction, rolling back state
- * after each command (after selecting the final results).
+ * after each command, then select and re-execute a chosen statement
+ * and commit the parent transaction
  */
 type SerialClient struct {
 	mainConnStr string
-	port        string
 }
 
 func (c SerialClient) GetName() string {
-	return "serial-client"
+	return "serial-snapshot"
 }
 
 func (c SerialClient) Scaffold() error {
@@ -32,13 +32,17 @@ func (c SerialClient) Scaffold() error {
 		return fmt.Errorf("error loading .env file")
 	}
 	c.mainConnStr = os.Getenv("SERIAL_DATABASE_URL")
-	c.port = os.Getenv("SERIAL_DATABASE_PORT")
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close(context.Background())
 
+	// Clean table for tests
+	_, err = conn.Exec(context.Background(), "DROP TABLE IF EXISTS users;")
+	if err != nil {
+		return err
+	}
 	_, err = conn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, balance INTEGER);")
 	if err != nil {
 		return err
@@ -56,7 +60,6 @@ func (c SerialClient) GenerateSQL() ([]TestCase, error) {
 			},
 		},
 	}
-
 	return testCases, nil
 }
 
@@ -105,6 +108,7 @@ func (c SerialClient) Execute(testCases []TestCase) error {
 				}
 			} else {
 				// Query only, no Command
+				fmt.Println("running query only test")
 				rows, err = parentTxn.Query(context.Background(), statement.Query)
 				if err != nil {
 					return err
@@ -119,15 +123,16 @@ func (c SerialClient) Execute(testCases []TestCase) error {
 				}
 				states = append(states, v)
 			}
+			rows.Close() // required so connection is not considered busy during rollback
 
-			// Rollback nested transaction
 			_, rollbackErr := parentTxn.Exec(context.Background(), "ROLLBACK TO SAVEPOINT nested_txn")
 			if rollbackErr != nil {
+				fmt.Println("failed")
 				log.Fatalf("Failed to rollback to savepoint for nested transaction: %v\n", rollbackErr)
 			}
 		}
 
-		// For now, choose random state as correct state and log it
+		// For now, choose random state as correct state
 		idx := rand.Intn(len(states))
 		log.Default().Printf("idx: %v; state: %v\n", idx, states[idx])
 
@@ -136,11 +141,12 @@ func (c SerialClient) Execute(testCases []TestCase) error {
 		if err != nil {
 			return err
 		}
-		// Query from Chosen Statement, may do something with this later, placeholder
-		_, err = parentTxn.Query(context.Background(), testCase.Statements[idx].Query)
+		// PLACEHOLDER: Query from Chosen Statement, may do something with this later
+		placeholder, err := parentTxn.Query(context.Background(), testCase.Statements[idx].Query)
 		if err != nil {
 			return err
 		}
+		placeholder.Close() // avoid conn busy error
 
 		// Commit parent transaction with applied changes from one chosen Statement
 		err = parentTxn.Commit(context.Background())
