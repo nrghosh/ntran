@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"sync"
 	"time"
@@ -59,12 +60,16 @@ func (c *SmartNeonDBClient) GetName() string {
 	return "smartneondb"
 }
 
-func (c *SmartNeonDBClient) Scaffold() error {
-	err := c.NeonDBClient.Scaffold()
+func (c *SmartNeonDBClient) Scaffold(inFlight int) error {
+	err := c.NeonDBClient.Scaffold(inFlight)
 	if err != nil {
 		return err
 	}
-	for i := 0; i < 9; i++ {
+	if inFlight > 9 {
+		log.Fatalf("error scaffolding smartneondb. Can only handle 10 concurrent branches, so inFlight must be at most 9")
+	}
+
+	for i := 0; i < inFlight; i++ {
 		db := fmt.Sprintf("db_%v", i)
 		connStr := c.createBranch(db)
 		c.branches = append(c.branches, BranchInfo{Name: db, ConnStr: connStr})
@@ -169,6 +174,8 @@ func (c *SmartNeonDBClient) Cleanup() error {
 	}
 	c.makeBranchDefault("main")
 	c.addCompute("main")
+	// TODO: Figure out why this isn't deleting
+	time.Sleep(1 * time.Second)
 	c.deleteBranch(c.defaultBranchName)
 	return nil
 }

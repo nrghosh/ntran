@@ -26,7 +26,7 @@ func (c *SerialClient) GetName() string {
 	return "serial-snapshot"
 }
 
-func (c *SerialClient) Scaffold() error {
+func (c *SerialClient) Scaffold(inFlight int) error {
 	err := godotenv.Load()
 	if err != nil {
 		return fmt.Errorf("error loading .env file")

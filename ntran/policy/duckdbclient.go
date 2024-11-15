@@ -14,7 +14,7 @@ func (c *DuckDBClient) GetName() string {
 	return "duckdb"
 }
 
-func (c *DuckDBClient) Scaffold() error {
+func (c *DuckDBClient) Scaffold(inFlight int) error {
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
 		return err

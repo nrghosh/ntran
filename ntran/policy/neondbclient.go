@@ -34,7 +34,7 @@ func (c *NeonDBClient) GetName() string {
 	return "neondb"
 }
 
-func (c *NeonDBClient) Scaffold() error {
+func (c *NeonDBClient) Scaffold(inFlight int) error {
 	c.mainConnStr = c.getConnectionString("main")
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
@@ -106,11 +106,6 @@ func (c *NeonDBClient) getConnectionString(branchName string) string {
 	return strings.TrimSpace(stdout.String())
 }
 
-/*
- * createBranch - creates neondb branch. TODO: takes on the order of seconds, so might be
- * worth creating a bunch up front. then as we get closer to the number of transactions
- * we want to run, start to spawn more branches.
- */
 func (c *NeonDBClient) createBranch(name string) string {
 	cmd := exec.Command(
 		"neon", "branches", "create",
@@ -136,11 +131,6 @@ func (c *NeonDBClient) createBranch(name string) string {
 	return ""
 }
 
-/*
- * commit - commits the selected change to the database. after this, we delete all the branches.
- * TODO: however, we could run `neon branch <branch-name> restore ^<winning-branch-name>` to set all
- * branches up to the state of the branch that has already won.
- */
 func (c *NeonDBClient) commit(statement Statement) error {
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {

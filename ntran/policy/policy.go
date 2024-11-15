@@ -16,7 +16,7 @@ type Policy interface {
 	// GetName - gets the name of the policy
 	GetName() string
 	// Scaffold - creates the database schema
-	Scaffold() error
+	Scaffold(inFlight int) error
 	// GenerateSQL - creates the SQL commands and queries to be benchmarked
 	GenerateSQL(inFlight int) ([]TestCase, error)
 	// Execute - executes each SQL command and query
