@@ -5,13 +5,33 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug ntran",
+            "name": "Debug neondb",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "ntran/main.go",
             "args": [
                 "-policy", "neondb"
+            ]
+        },
+        {
+            "name": "Debug smartneondb",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "ntran/main.go",
+            "args": [
+                "-policy", "smartneondb"
+            ]
+        },
+        {
+            "name": "Debug duckdb",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "ntran/main.go",
+            "args": [
+                "-policy", "duckdb"
             ]
         }
     ]
