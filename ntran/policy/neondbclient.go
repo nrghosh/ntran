@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/joho/godotenv"
 	"golang.org/x/exp/rand"
 )
 
@@ -26,9 +24,10 @@ type BranchInfo struct {
 }
 
 type ExecutionResult struct {
-	Statement Statement
-	Values    []any
-	Error     error
+	BranchName string
+	Statement  Statement
+	Values     []any
+	Error      error
 }
 
 func (c *NeonDBClient) GetName() string {
@@ -36,11 +35,7 @@ func (c *NeonDBClient) GetName() string {
 }
 
 func (c *NeonDBClient) Scaffold() error {
-	err := godotenv.Load()
-	if err != nil {
-		return fmt.Errorf("error loading .env file")
-	}
-	c.mainConnStr = os.Getenv("NEON_DATABASE_URL")
+	c.mainConnStr = c.getConnectionString("main")
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
 		return err
@@ -75,29 +70,40 @@ func (c *NeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	return testCases, nil
 }
 
-func (c *NeonDBClient) deleteBranch(name string) {
-	maxAttempts := 3
+func (c *NeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Builder) {
 	var stdout strings.Builder
 	var stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	maxAttempts := 5
 	for attempts := 0; attempts < maxAttempts; attempts++ {
-		cmd := exec.Command(
-			"neon", "branches", "delete", name,
-			"--output", "json",
-		)
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			if strings.Contains(err.Error(), "ERROR: Request timed out") {
+			if strings.Contains(err.Error(), "ERROR:") {
 				if attempts == maxAttempts {
 					log.Default().Println(stderr.String())
 					log.Fatal(err)
 				} else {
-					time.Sleep(1 * time.Second)
+					time.Sleep(time.Duration(1+attempts) * time.Second)
 					continue
 				}
 			}
 		}
 	}
+	return &stdout, &stderr
+}
+
+func (c *NeonDBClient) deleteBranch(name string) {
+	cmd := exec.Command(
+		"neon", "branches", "delete", name,
+		"--output", "json",
+	)
+	c.runNeonCmd(cmd)
+}
+
+func (c *NeonDBClient) getConnectionString(branchName string) string {
+	cmd := exec.Command("neon", "connection-string", branchName)
+	stdout, _ := c.runNeonCmd(cmd)
+	return strings.TrimSpace(stdout.String())
 }
 
 /*
@@ -106,32 +112,12 @@ func (c *NeonDBClient) deleteBranch(name string) {
  * we want to run, start to spawn more branches.
  */
 func (c *NeonDBClient) createBranch(name string) string {
-
-	maxAttempts := 3
-	var stdout strings.Builder
-	var stderr strings.Builder
-	for attempts := 0; attempts < maxAttempts; attempts++ {
-		cmd := exec.Command(
-			"neon", "branches", "create",
-			"--name", name,
-			"--output", "json",
-		)
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			// https://community.neon.tech/t/project-already-has-running-operations-scheduling-of-new-ones-is-prohibited/242
-			concurrentErrorMessage := "ERROR: project already has running operations, scheduling of new ones is prohibited"
-			if strings.Contains(err.Error(), concurrentErrorMessage) {
-				if attempts == maxAttempts {
-					log.Default().Println(stderr.String())
-					log.Fatal(err)
-				} else {
-					time.Sleep(1 * time.Second)
-					continue
-				}
-			}
-		}
-	}
+	cmd := exec.Command(
+		"neon", "branches", "create",
+		"--name", name,
+		"--output", "json",
+	)
+	stdout, _ := c.runNeonCmd(cmd)
 
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(stdout.String()), &result); err != nil {
@@ -178,8 +164,10 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 	defer wg.Done()
 
 	var rows pgx.Rows
+	var branchName string
 	if statement.Command != "" {
 		if branchInfo, ok := branchInfoMap[statement.Command]; ok {
+			branchName = branchInfo.Name
 			conn, err := pgx.Connect(context.Background(), branchInfo.ConnStr)
 			if err != nil {
 				ch <- ExecutionResult{Error: err}
@@ -197,6 +185,7 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 			}
 		}
 	} else {
+		branchName = "main"
 		conn, err := pgx.Connect(context.Background(), mainConnStr)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
@@ -213,7 +202,7 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
 		}
-		ch <- ExecutionResult{Statement: statement, Values: v}
+		ch <- ExecutionResult{BranchName: branchName, Statement: statement, Values: v}
 	}
 }
 

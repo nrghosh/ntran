@@ -33,6 +33,8 @@ func CreateClient(policy string) (Policy, error) {
 		return &DuckDBClient{}, nil
 	case "neondb":
 		return &NeonDBClient{}, nil
+	case "smartneondb":
+		return &SmartNeonDBClient{}, nil
 	default:
 		return nil, fmt.Errorf("unable to create client of type %s", policy)
 	}
