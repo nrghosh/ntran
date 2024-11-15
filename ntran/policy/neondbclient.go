@@ -70,12 +70,14 @@ func (c *NeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	return testCases, nil
 }
 
+// TODO: each neon command we run _must_ succeed, or else the test fails. So, implement
+// a longer retry loop. Possibly make it ridiculously long?
 func (c *NeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Builder) {
 	var stdout strings.Builder
 	var stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	maxAttempts := 5
+	maxAttempts := 10
 	for attempts := 0; attempts < maxAttempts; attempts++ {
 		if err := cmd.Run(); err != nil {
 			if strings.Contains(err.Error(), "ERROR:") {
