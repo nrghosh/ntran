@@ -167,7 +167,8 @@ func (c *SmartNeonDBClient) Cleanup() error {
 			c.deleteBranch(branchName.Name)
 		}
 	}
-	c.deleteBranch(c.defaultBranchName)
+	c.makeBranchDefault("main")
 	c.addCompute("main")
+	c.deleteBranch(c.defaultBranchName)
 	return nil
 }
