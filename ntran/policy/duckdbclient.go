@@ -2,6 +2,7 @@ package policy
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/marcboeker/go-duckdb" // this doesn't work on Windows :-(
 )
@@ -9,11 +10,11 @@ import (
 type DuckDBClient struct {
 }
 
-func (c DuckDBClient) GetName() string {
+func (c *DuckDBClient) GetName() string {
 	return "duckdb"
 }
 
-func (c DuckDBClient) Scaffold() error {
+func (c *DuckDBClient) Scaffold() error {
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
 		return err
@@ -28,7 +29,7 @@ func (c DuckDBClient) Scaffold() error {
 	return nil
 }
 
-func (c DuckDBClient) GenerateSQL() ([]TestCase, error) {
+func (c *DuckDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	testCases := []TestCase{
 		{
 			Name: "Short Insert",
@@ -42,7 +43,7 @@ func (c DuckDBClient) GenerateSQL() ([]TestCase, error) {
 	return testCases, nil
 }
 
-func (c DuckDBClient) Execute(testCases []TestCase) error {
+func (c *DuckDBClient) Execute(testCases []TestCase) error {
 	for i, testCase := range testCases {
 		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
 		benchmark.Start()
@@ -61,4 +62,8 @@ func (c DuckDBClient) Execute(testCases []TestCase) error {
 		benchmark.Log(i)
 	}
 	return nil
+}
+
+func (c *DuckDBClient) Cleanup() error {
+	return fmt.Errorf("DuckDBClient Cleanup unimplemented")
 }

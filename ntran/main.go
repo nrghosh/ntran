@@ -46,16 +46,28 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating the database client: %v", err)
 	}
-	err = dbClient.Scaffold()
-	if err != nil {
-		log.Fatalf("error scaffolding the database: %v", err)
-	}
-	commands, err := dbClient.GenerateSQL()
-	if err != nil {
-		log.Fatalf("error generating the SQL: %v", err)
-	}
-	err = dbClient.Execute(commands)
-	if err != nil {
-		log.Fatalf("error executing: %v", err)
+
+	// maybe we want the clients to own how to progress to the next
+	// transaction level? might be the case that some policies can handle
+	// more concurrent transactions than others. specifically, duckdb
+	// can handle up to 500, whereas neondb free-tier can handle up to 9.
+	step := 1
+	for inFlight := 1; inFlight < 10; inFlight += step {
+		err = dbClient.Scaffold()
+		if err != nil {
+			log.Fatalf("error scaffolding the database: %v", err)
+		}
+		commands, err := dbClient.GenerateSQL(inFlight)
+		if err != nil {
+			log.Fatalf("error generating the SQL: %v", err)
+		}
+		err = dbClient.Execute(commands)
+		if err != nil {
+			log.Fatalf("error executing: %v", err)
+		}
+		err = dbClient.Cleanup()
+		if err != nil {
+			log.Fatalf("error cleaning up: %v", err)
+		}
 	}
 }

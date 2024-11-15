@@ -18,19 +18,21 @@ type Policy interface {
 	// Scaffold - creates the database schema
 	Scaffold() error
 	// GenerateSQL - creates the SQL commands and queries to be benchmarked
-	GenerateSQL() ([]TestCase, error)
+	GenerateSQL(inFlight int) ([]TestCase, error)
 	// Execute - executes each SQL command and query
 	Execute(testCases []TestCase) error
+	// Cleanup - resets the DBMS state back to pre-scaffolding state
+	Cleanup() error
 }
 
 func CreateClient(policy string) (Policy, error) {
 	switch policy {
 	case "serial-snapshot":
-		return SerialClient{}, nil
+		return &SerialClient{}, nil
 	case "duckdb":
-		return DuckDBClient{}, nil
+		return &DuckDBClient{}, nil
 	case "neondb":
-		return NeonDBClient{}, nil
+		return &NeonDBClient{}, nil
 	default:
 		return nil, fmt.Errorf("unable to create client of type %s", policy)
 	}

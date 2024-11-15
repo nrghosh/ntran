@@ -22,11 +22,11 @@ type SerialClient struct {
 	mainConnStr string
 }
 
-func (c SerialClient) GetName() string {
+func (c *SerialClient) GetName() string {
 	return "serial-snapshot"
 }
 
-func (c SerialClient) Scaffold() error {
+func (c *SerialClient) Scaffold() error {
 	err := godotenv.Load()
 	if err != nil {
 		return fmt.Errorf("error loading .env file")
@@ -50,7 +50,7 @@ func (c SerialClient) Scaffold() error {
 	return nil
 }
 
-func (c SerialClient) GenerateSQL() ([]TestCase, error) {
+func (c *SerialClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	testCases := []TestCase{
 		{
 			Name: "Short Insert",
@@ -63,7 +63,7 @@ func (c SerialClient) GenerateSQL() ([]TestCase, error) {
 	return testCases, nil
 }
 
-func (c SerialClient) Execute(testCases []TestCase) error {
+func (c *SerialClient) Execute(testCases []TestCase) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
 
 	// Share DB connection across all TestCases
@@ -158,4 +158,8 @@ func (c SerialClient) Execute(testCases []TestCase) error {
 		benchmark.Log(i)
 	}
 	return nil
+}
+
+func (c *SerialClient) Cleanup() error {
+	return fmt.Errorf("SerialClient Cleanup unimplemented")
 }
