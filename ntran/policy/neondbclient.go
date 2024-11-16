@@ -160,17 +160,20 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 			conn, err := pgx.Connect(context.Background(), branchInfo.ConnStr)
 			if err != nil {
 				ch <- ExecutionResult{Error: err}
+				return
 			}
 			defer conn.Close(context.Background())
 
 			_, err = conn.Exec(context.Background(), statement.Command)
 			if err != nil {
 				ch <- ExecutionResult{Error: err}
+				return
 			}
 
 			rows, err = conn.Query(context.Background(), statement.Query)
 			if err != nil {
 				ch <- ExecutionResult{Error: err}
+				return
 			}
 		}
 	} else {
@@ -178,18 +181,21 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 		conn, err := pgx.Connect(context.Background(), mainConnStr)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
+			return
 		}
 		defer conn.Close(context.Background())
 
 		rows, err = conn.Query(context.Background(), statement.Query)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
+			return
 		}
 	}
 	if rows.Next() {
 		v, err := rows.Values()
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
+			return
 		}
 		ch <- ExecutionResult{BranchName: branchName, Statement: statement, Values: v}
 	}
