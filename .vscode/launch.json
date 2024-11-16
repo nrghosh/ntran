@@ -22,7 +22,7 @@
             "program": "ntran/main.go",
             "args": [
                 "-policy", "smartneondb",
-                "-max-in-flight", "2"
+                "-max-in-flight", "5"
             ]
         },
         {

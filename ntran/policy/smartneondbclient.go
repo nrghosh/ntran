@@ -75,14 +75,13 @@ func (c *SmartNeonDBClient) Scaffold(inFlight int) error {
 		c.branches = append(c.branches, BranchInfo{Name: db, ConnStr: connStr})
 		time.Sleep(5 * time.Millisecond)
 	}
-	// we want to get 10 branches with active compute and one root
-	// branch with no compute. this accomplishes that.
+	lastdb := fmt.Sprintf("db_%v", inFlight)
 	c.moveBranchToHead("main", "db_0", "--preserve-under-name", "oldmain")
 	c.moveBranchToHead("main", "oldmain")
-	c.renameBranch("main", "db_10")
+	c.renameBranch("main", lastdb)
 	c.renameBranch("oldmain", "main")
 	c.makeBranchDefault("main")
-	c.branches = append(c.branches, BranchInfo{Name: "db_10", ConnStr: c.getConnectionString("db_10")})
+	c.branches = append(c.branches, BranchInfo{Name: lastdb, ConnStr: c.getConnectionString(lastdb)})
 	return nil
 }
 
@@ -90,41 +89,35 @@ func executeBranchInfo(statement Statement, branchInfo BranchInfo, wg *sync.Wait
 	defer wg.Done()
 
 	var rows pgx.Rows
+	var values []any
+
+	conn, err := pgx.Connect(context.Background(), branchInfo.ConnStr)
+	if err != nil {
+		ch <- ExecutionResult{Error: err}
+		return
+	}
+	defer conn.Close(context.Background())
+
 	if statement.Command != "" {
-		conn, err := pgx.Connect(context.Background(), branchInfo.ConnStr)
-		if err != nil {
-			ch <- ExecutionResult{Error: err}
-		}
-		defer conn.Close(context.Background())
 
-		_, err = conn.Exec(context.Background(), statement.Command)
-		if err != nil {
-			ch <- ExecutionResult{Error: err}
-		}
-
-		rows, err = conn.Query(context.Background(), statement.Query)
+		_, err := conn.Exec(context.Background(), statement.Command)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
 		}
 	} else {
-		conn, err := pgx.Connect(context.Background(), branchInfo.ConnStr)
-		if err != nil {
-			ch <- ExecutionResult{Error: err}
-		}
-		defer conn.Close(context.Background())
-
 		rows, err = conn.Query(context.Background(), statement.Query)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
 		}
-	}
-	if rows.Next() {
-		v, err := rows.Values()
-		if err != nil {
-			ch <- ExecutionResult{Error: err}
+		if rows.Next() {
+			values, err = rows.Values()
+			if err != nil {
+				ch <- ExecutionResult{Error: err}
+			}
 		}
-		ch <- ExecutionResult{BranchName: branchInfo.Name, Statement: statement, Values: v}
 	}
+
+	ch <- ExecutionResult{BranchName: branchInfo.Name, Statement: statement, Values: values}
 }
 
 func (c *SmartNeonDBClient) Execute(testCases []TestCase) error {
@@ -167,15 +160,22 @@ func (c *SmartNeonDBClient) Execute(testCases []TestCase) error {
 }
 
 func (c *SmartNeonDBClient) Cleanup() error {
+	currDefaultBranchName := c.defaultBranchName
 	for _, branchName := range c.branches {
-		if branchName.Name != c.defaultBranchName {
+		if branchName.Name != currDefaultBranchName {
 			c.deleteBranch(branchName.Name)
 		}
 	}
+
 	c.makeBranchDefault("main")
 	c.addCompute("main")
-	// TODO: Figure out why this isn't deleting
-	time.Sleep(1 * time.Second)
-	c.deleteBranch(c.defaultBranchName)
+
+	c.deleteBranch(currDefaultBranchName)
+	c.branches = []BranchInfo{}
+
+	// neon is super sensitive to sequential branching
+	// calls back and forth. so, give it some breathing room.
+	time.Sleep(5 * time.Second)
+
 	return nil
 }

@@ -95,10 +95,7 @@ func (c *NeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Bui
 }
 
 func (c *NeonDBClient) deleteBranch(name string) {
-	cmd := exec.Command(
-		"neon", "branches", "delete", name,
-		"--output", "json",
-	)
+	cmd := exec.Command("neon", "branch", "delete", name)
 	c.runNeonCmd(cmd)
 }
 
@@ -110,7 +107,7 @@ func (c *NeonDBClient) getConnectionString(branchName string) string {
 
 func (c *NeonDBClient) createBranch(name string) string {
 	cmd := exec.Command(
-		"neon", "branches", "create",
+		"neon", "branch", "create",
 		"--name", name,
 		"--output", "json",
 	)
