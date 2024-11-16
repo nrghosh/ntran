@@ -103,16 +103,19 @@ func executeBranchInfo(statement Statement, branchInfo BranchInfo, wg *sync.Wait
 		_, err := conn.Exec(context.Background(), statement.Command)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
+			return
 		}
 	} else {
 		rows, err = conn.Query(context.Background(), statement.Query)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
+			return
 		}
 		if rows.Next() {
 			values, err = rows.Values()
 			if err != nil {
 				ch <- ExecutionResult{Error: err}
+				return
 			}
 		}
 	}
