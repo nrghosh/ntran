@@ -34,7 +34,7 @@ func (c *NeonDBClient) GetName() string {
 	return "neondb"
 }
 
-func (c *NeonDBClient) Scaffold() error {
+func (c *NeonDBClient) Scaffold(inFlight int) error {
 	c.mainConnStr = c.getConnectionString("main")
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
@@ -70,12 +70,14 @@ func (c *NeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	return testCases, nil
 }
 
+// TODO: each neon command we run _must_ succeed, or else the test fails. So, implement
+// a longer retry loop. Possibly make it ridiculously long?
 func (c *NeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Builder) {
 	var stdout strings.Builder
 	var stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	maxAttempts := 5
+	maxAttempts := 10
 	for attempts := 0; attempts < maxAttempts; attempts++ {
 		if err := cmd.Run(); err != nil {
 			if strings.Contains(err.Error(), "ERROR:") {
@@ -93,10 +95,7 @@ func (c *NeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Bui
 }
 
 func (c *NeonDBClient) deleteBranch(name string) {
-	cmd := exec.Command(
-		"neon", "branches", "delete", name,
-		"--output", "json",
-	)
+	cmd := exec.Command("neon", "branch", "delete", name)
 	c.runNeonCmd(cmd)
 }
 
@@ -106,14 +105,9 @@ func (c *NeonDBClient) getConnectionString(branchName string) string {
 	return strings.TrimSpace(stdout.String())
 }
 
-/*
- * createBranch - creates neondb branch. TODO: takes on the order of seconds, so might be
- * worth creating a bunch up front. then as we get closer to the number of transactions
- * we want to run, start to spawn more branches.
- */
 func (c *NeonDBClient) createBranch(name string) string {
 	cmd := exec.Command(
-		"neon", "branches", "create",
+		"neon", "branch", "create",
 		"--name", name,
 		"--output", "json",
 	)
@@ -136,11 +130,6 @@ func (c *NeonDBClient) createBranch(name string) string {
 	return ""
 }
 
-/*
- * commit - commits the selected change to the database. after this, we delete all the branches.
- * TODO: however, we could run `neon branch <branch-name> restore ^<winning-branch-name>` to set all
- * branches up to the state of the branch that has already won.
- */
 func (c *NeonDBClient) commit(statement Statement) error {
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
