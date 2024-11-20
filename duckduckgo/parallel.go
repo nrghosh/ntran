@@ -197,10 +197,22 @@ func runTransactionOnInstance(instance *DatabaseInstance, transactionType string
 		query = OrderRanges
 	case "distinct-ranges":
 		query = DistinctRanges
-	case "deletes":
-		query = Deletes
-	case "inserts":
-		query = "Inserts"
+	//case "deletes":
+	//	query = Deletes
+	//case "inserts":
+	//	query = Inserts
+	case "point-update-idx":
+		query = PointUpdateIndexed
+	case "point-update-non-idx":
+		query = PointUpdateNonIndexed
+	case "batch-insert":
+		query = BatchInsert
+	case "select-secondary-idx":
+		query = SelectSecondaryIndexed
+	case "select-scan":
+		query = SelectScan
+	case "select-join":
+		query = SelectJoin
 	}
 
 	tx, err := instance.DB.Begin()
