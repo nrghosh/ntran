@@ -20,22 +20,24 @@ type Policy interface {
 	// GenerateSQL - creates the SQL commands and queries to be benchmarked
 	GenerateSQL(inFlight int) ([]TestCase, error)
 	// Execute - executes each SQL command and query
-	Execute(testCases []TestCase) error
+	Execute(testCases []TestCase, experiment *Experiment) error
 	// Cleanup - resets the DBMS state back to pre-scaffolding state
 	Cleanup() error
 }
 
 func CreateClient(policy string) (Policy, error) {
-	switch policy {
-	case "serial-snapshot":
-		return &SerialClient{}, nil
-	case "duckdb":
-		return &DuckDBClient{}, nil
-	case "neondb":
-		return &NeonDBClient{}, nil
-	case "smartneondb":
-		return &SmartNeonDBClient{}, nil
-	default:
-		return nil, fmt.Errorf("unable to create client of type %s", policy)
+	clientRegistry := []Policy{
+		&SerialClient{},
+		&DuckDBClient{},
+		&ColdNeonDBClient{},
+		&PreWarmNeonDBClient{},
 	}
+
+	for _, client := range clientRegistry {
+		if client.GetName() == policy {
+			return client, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unable to create client of type %s", policy)
 }

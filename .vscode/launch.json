@@ -11,7 +11,7 @@
             "mode": "auto",
             "program": "ntran/main.go",
             "args": [
-                "-policy", "neondb"
+                "-policy", "cold-neondb"
             ]
         },
         {
@@ -21,8 +21,8 @@
             "mode": "auto",
             "program": "ntran/main.go",
             "args": [
-                "-policy", "smartneondb",
-                "-max-in-flight", "5"
+                "-policy", "prewarm-neondb",
+                "-max-in-flight", "10"
             ]
         },
         {

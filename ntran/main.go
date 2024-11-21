@@ -28,8 +28,9 @@ func setupLog(logDir string) (*os.File, error) {
 }
 
 func main() {
-	policyArg := flag.String("policy", "serial-snapshot", "the policy to run [serial-snapshot, duckdb, neondb]")
+	policyArg := flag.String("policy", "serial-snapshot", "the policy to run [serial-snapshot, duckdb, cold-neondb, prewarm-neondb]")
 	logDirArg := flag.String("log-dir", "./logs", "the directory to write logs to")
+	csvDirArg := flag.String("csv-dir", "./csvs", "the directory to write csv output for analysis input")
 	maxInFlightArg := flag.String("max-in-flight", "10", "the total number of concurrent, in-flight transactions to consider")
 
 	flag.Parse()
@@ -37,7 +38,7 @@ func main() {
 	logFile, err := setupLog(*logDirArg)
 
 	if err != nil {
-		fmt.Printf("error: %v\n", err)
+		fmt.Printf("error: %v", err)
 	} else {
 		fmt.Printf("will print logs to '%s'\n", *logDirArg)
 	}
@@ -54,12 +55,20 @@ func main() {
 		log.Fatalf("error specifying max number of in-flight transactions to handle")
 	}
 
+	experiment := policy.Experiment{Policy: *policyArg, MaxInFlight: maxInFlight}
+	err = experiment.Start(*csvDirArg)
+	defer experiment.End()
+
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+
 	// maybe we want the clients to own how to progress to the next
 	// transaction level? might be the case that some policies can handle
 	// more concurrent transactions than others. specifically, duckdb
 	// can handle up to 500, whereas neondb free-tier can handle up to 9.
 	step := 1
-	for inFlight := 1; inFlight < maxInFlight; inFlight += step {
+	for inFlight := 1; inFlight <= maxInFlight; inFlight += step {
 		err = dbClient.Scaffold(inFlight)
 		if err != nil {
 			log.Fatalf("error scaffolding the database: %v", err)
@@ -68,7 +77,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error generating the SQL: %v", err)
 		}
-		err = dbClient.Execute(commands)
+		err = dbClient.Execute(commands, &experiment)
 		if err != nil {
 			log.Fatalf("error executing: %v", err)
 		}
