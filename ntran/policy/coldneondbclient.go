@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-type NeonDBClient struct {
+type ColdNeonDBClient struct {
 	mainConnStr string
 }
 
@@ -30,11 +30,11 @@ type ExecutionResult struct {
 	Error      error
 }
 
-func (c *NeonDBClient) GetName() string {
-	return "neondb"
+func (c *ColdNeonDBClient) GetName() string {
+	return "cold-neondb"
 }
 
-func (c *NeonDBClient) Scaffold(inFlight int) error {
+func (c *ColdNeonDBClient) Scaffold(inFlight int) error {
 	c.mainConnStr = c.getConnectionString("main")
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
@@ -49,7 +49,7 @@ func (c *NeonDBClient) Scaffold(inFlight int) error {
 	return nil
 }
 
-func (c *NeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
+func (c *ColdNeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 
 	var shortInsertStatements []Statement
 	for i := 0; i < inFlight; i++ {
@@ -72,7 +72,7 @@ func (c *NeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 
 // TODO: each neon command we run _must_ succeed, or else the test fails. So, implement
 // a longer retry loop. Possibly make it ridiculously long?
-func (c *NeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Builder) {
+func (c *ColdNeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Builder) {
 	var stdout strings.Builder
 	var stderr strings.Builder
 	cmd.Stdout = &stdout
@@ -94,18 +94,18 @@ func (c *NeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Bui
 	return &stdout, &stderr
 }
 
-func (c *NeonDBClient) deleteBranch(name string) {
+func (c *ColdNeonDBClient) deleteBranch(name string) {
 	cmd := exec.Command("neon", "branch", "delete", name)
 	c.runNeonCmd(cmd)
 }
 
-func (c *NeonDBClient) getConnectionString(branchName string) string {
+func (c *ColdNeonDBClient) getConnectionString(branchName string) string {
 	cmd := exec.Command("neon", "connection-string", branchName)
 	stdout, _ := c.runNeonCmd(cmd)
 	return strings.TrimSpace(stdout.String())
 }
 
-func (c *NeonDBClient) createBranch(name string) string {
+func (c *ColdNeonDBClient) createBranch(name string) string {
 	cmd := exec.Command(
 		"neon", "branch", "create",
 		"--name", name,
@@ -130,7 +130,7 @@ func (c *NeonDBClient) createBranch(name string) string {
 	return ""
 }
 
-func (c *NeonDBClient) commit(statement Statement) error {
+func (c *ColdNeonDBClient) commit(statement Statement) error {
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
 		return err
@@ -201,10 +201,15 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 	}
 }
 
-func (c *NeonDBClient) Execute(testCases []TestCase) error {
+func (c *ColdNeonDBClient) Execute(testCases []TestCase, experiment *Experiment) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
 	for i, testCase := range testCases {
-		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
+		benchmark := Benchmark{
+			Experiment:       experiment,
+			Policy:           c.GetName(),
+			TestCase:         testCase.Name,
+			TransactionCount: len(testCase.Statements),
+		}
 		benchmark.Start()
 
 		branchInfoMap := make(map[string]BranchInfo)
@@ -251,7 +256,7 @@ func (c *NeonDBClient) Execute(testCases []TestCase) error {
 		}
 
 		benchmark.End()
-		benchmark.Log(i)
+		benchmark.Log()
 
 		for _, branchInfo := range branchInfoMap {
 			c.deleteBranch(branchInfo.Name)
@@ -260,7 +265,7 @@ func (c *NeonDBClient) Execute(testCases []TestCase) error {
 	return nil
 }
 
-func (c *NeonDBClient) Cleanup() error {
+func (c *ColdNeonDBClient) Cleanup() error {
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
 		return err

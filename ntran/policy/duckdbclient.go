@@ -43,9 +43,14 @@ func (c *DuckDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	return testCases, nil
 }
 
-func (c *DuckDBClient) Execute(testCases []TestCase) error {
-	for i, testCase := range testCases {
-		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
+func (c *DuckDBClient) Execute(testCases []TestCase, experiment *Experiment) error {
+	for _, testCase := range testCases {
+		benchmark := Benchmark{
+			Experiment:       experiment,
+			Policy:           c.GetName(),
+			TestCase:         testCase.Name,
+			TransactionCount: len(testCase.Statements),
+		}
 		benchmark.Start()
 		for _, statement := range testCase.Statements {
 			if statement.Command != "" {
@@ -59,7 +64,7 @@ func (c *DuckDBClient) Execute(testCases []TestCase) error {
 			}
 		}
 		benchmark.End()
-		benchmark.Log(i)
+		benchmark.Log()
 	}
 	return nil
 }

@@ -63,7 +63,7 @@ func (c *SerialClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	return testCases, nil
 }
 
-func (c *SerialClient) Execute(testCases []TestCase) error {
+func (c *SerialClient) Execute(testCases []TestCase, experiment *Experiment) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
 
 	// Share DB connection across all TestCases
@@ -74,7 +74,12 @@ func (c *SerialClient) Execute(testCases []TestCase) error {
 	defer conn.Close(context.Background())
 
 	for i, testCase := range testCases {
-		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
+		benchmark := Benchmark{
+			Experiment:       experiment,
+			Policy:           c.GetName(),
+			TestCase:         testCase.Name,
+			TransactionCount: len(testCase.Statements),
+		}
 		benchmark.Start()
 
 		// Start parent transaction
@@ -155,7 +160,7 @@ func (c *SerialClient) Execute(testCases []TestCase) error {
 		}
 
 		benchmark.End()
-		benchmark.Log(i)
+		benchmark.Log()
 	}
 	return nil
 }

@@ -12,18 +12,18 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-type SmartNeonDBClient struct {
-	NeonDBClient
+type PreWarmNeonDBClient struct {
+	ColdNeonDBClient
 	branches          []BranchInfo
 	defaultBranchName string
 }
 
-func (c *SmartNeonDBClient) addCompute(branchName string) {
+func (c *PreWarmNeonDBClient) addCompute(branchName string) {
 	cmd := exec.Command("neon", "branch", "add-compute", branchName, "--type", "read_write")
 	c.runNeonCmd(cmd)
 }
 
-func (c *SmartNeonDBClient) moveBranchesToTargetHead(targetBranchName string) {
+func (c *PreWarmNeonDBClient) moveBranchesToTargetHead(targetBranchName string) {
 	for _, branch := range c.branches {
 		if branch.Name != targetBranchName {
 			c.moveBranchToHead(branch.Name, targetBranchName)
@@ -32,7 +32,7 @@ func (c *SmartNeonDBClient) moveBranchesToTargetHead(targetBranchName string) {
 	}
 }
 
-func (c *SmartNeonDBClient) renameBranch(oldBranchName string, newBranchName string) {
+func (c *PreWarmNeonDBClient) renameBranch(oldBranchName string, newBranchName string) {
 	cmd := exec.Command(
 		"neon", "branch",
 		"rename", oldBranchName, newBranchName,
@@ -40,7 +40,7 @@ func (c *SmartNeonDBClient) renameBranch(oldBranchName string, newBranchName str
 	c.runNeonCmd(cmd)
 }
 
-func (c *SmartNeonDBClient) makeBranchDefault(branchName string) {
+func (c *PreWarmNeonDBClient) makeBranchDefault(branchName string) {
 	cmd := exec.Command(
 		"neon", "branch",
 		"set-default", branchName,
@@ -49,27 +49,32 @@ func (c *SmartNeonDBClient) makeBranchDefault(branchName string) {
 	c.defaultBranchName = branchName
 }
 
-func (c *SmartNeonDBClient) moveBranchToHead(branchName string, targetBranchName string, arg ...string) {
+func (c *PreWarmNeonDBClient) moveBranchToHead(branchName string, targetBranchName string, arg ...string) {
 	args := []string{"branch", "restore", branchName, targetBranchName}
 	args = append(args, arg...)
 	cmd := exec.Command("neon", args...)
 	c.runNeonCmd(cmd)
 }
 
-func (c *SmartNeonDBClient) GetName() string {
-	return "smartneondb"
+func (c *PreWarmNeonDBClient) GetName() string {
+	return "prewarm-neondb"
 }
 
-func (c *SmartNeonDBClient) Scaffold(inFlight int) error {
-	err := c.NeonDBClient.Scaffold(inFlight)
+func (c *PreWarmNeonDBClient) Scaffold(inFlight int) error {
+	err := c.ColdNeonDBClient.Scaffold(inFlight)
 	if err != nil {
 		return err
 	}
-	if inFlight > 9 {
-		log.Fatalf("error scaffolding smartneondb. Can only handle 10 concurrent branches, so inFlight must be at most 9")
+	if inFlight > 10 {
+		log.Fatalf("error scaffolding smartneondb. Can only handle 10 concurrent branches, so inFlight must be at most 10")
 	}
 
-	for i := 0; i < inFlight; i++ {
+	/*
+	 * 1. create (inFlight-1) extra branches
+	 * 2. turn main into the last branch with active compute
+	 * 3. have an archived branch (with no compute) as the parent to all branches
+	 */
+	for i := 0; i < inFlight-1; i++ {
 		db := fmt.Sprintf("db_%v", i)
 		connStr := c.createBranch(db)
 		c.branches = append(c.branches, BranchInfo{Name: db, ConnStr: connStr})
@@ -123,10 +128,15 @@ func executeBranchInfo(statement Statement, branchInfo BranchInfo, wg *sync.Wait
 	ch <- ExecutionResult{BranchName: branchInfo.Name, Statement: statement, Values: values}
 }
 
-func (c *SmartNeonDBClient) Execute(testCases []TestCase) error {
+func (c *PreWarmNeonDBClient) Execute(testCases []TestCase, experiment *Experiment) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
-	for i, testCase := range testCases {
-		benchmark := Benchmark{Policy: c.GetName(), TestCase: testCase.Name}
+	for _, testCase := range testCases {
+		benchmark := Benchmark{
+			Experiment:       experiment,
+			Policy:           c.GetName(),
+			TestCase:         testCase.Name,
+			TransactionCount: len(testCase.Statements),
+		}
 		benchmark.Start()
 
 		var results []ExecutionResult
@@ -157,12 +167,12 @@ func (c *SmartNeonDBClient) Execute(testCases []TestCase) error {
 		c.moveBranchesToTargetHead(winningBranchName)
 
 		benchmark.End()
-		benchmark.Log(i)
+		benchmark.Log()
 	}
 	return nil
 }
 
-func (c *SmartNeonDBClient) Cleanup() error {
+func (c *PreWarmNeonDBClient) Cleanup() error {
 	currDefaultBranchName := c.defaultBranchName
 	for _, branchName := range c.branches {
 		if branchName.Name != currDefaultBranchName {
