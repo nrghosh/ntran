@@ -132,9 +132,12 @@ func runExperiment(config ExperimentConfig, csvWriter *csv.Writer) error {
 }
 
 func main() {
-	transactionTypes := []string{"short", "long"}
+	transactionTypes := []string{"short", "long", "point-selects", "simple-ranges", "sum-ranges",
+		"order-ranges", "distinct-ranges", "point-update-idx", "point-update-non-idx", "batch-insert",
+		"select-secondary-idx", "select-scan", "select-join"}
 	executionModes := []string{"serial", "parallel"}
-	transactionCounts := []int{10, 25, 50, 100, 200, 500}
+	//transactionCounts := []int{10, 25, 50, 100, 200, 500}
+	transactionCounts := []int{10, 25, 50}
 
 	// get length of DB (may vary across runs)
 	initDatabase()

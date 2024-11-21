@@ -182,10 +182,37 @@ func runTransactionOnInstance(instance *DatabaseInstance, transactionType string
 	}
 
 	var query string
-	if transactionType == "short" {
+	switch transactionType {
+	case "short":
 		query = ShortQuery
-	} else {
+	case "long":
 		query = LongQuery
+	case "point-selects":
+		query = PointSelects
+	case "simple-ranges":
+		query = SimpleRanges
+	case "sum-ranges":
+		query = SumRanges
+	case "order-ranges":
+		query = OrderRanges
+	case "distinct-ranges":
+		query = DistinctRanges
+	//case "deletes":
+	//	query = Deletes
+	//case "inserts":
+	//	query = Inserts
+	case "point-update-idx":
+		query = PointUpdateIndexed
+	case "point-update-non-idx":
+		query = PointUpdateNonIndexed
+	case "batch-insert":
+		query = BatchInsert
+	case "select-secondary-idx":
+		query = SelectSecondaryIndexed
+	case "select-scan":
+		query = SelectScan
+	case "select-join":
+		query = SelectJoin
 	}
 
 	tx, err := instance.DB.Begin()
@@ -216,8 +243,8 @@ func runTransactionOnInstance(instance *DatabaseInstance, transactionType string
 func calculateDBChecksum(db *sql.DB) (string, error) {
 	// Query all data in a consistent order
 	rows, err := db.Query(`
-        SELECT id, balance 
-        FROM users 
+        SELECT id, balance
+        FROM users
         ORDER BY id
     `)
 	if err != nil {
