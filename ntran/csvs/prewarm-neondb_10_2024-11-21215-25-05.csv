@@ -1,0 +1,10 @@
+Policy,TestCase,TransactionCount,Duration
+prewarm-neondb,Short Insert,2,5.211930702s
+prewarm-neondb,Short Insert,3,10.408682201s
+prewarm-neondb,Short Insert,4,13.641237233s
+prewarm-neondb,Short Insert,5,19.458155268s
+prewarm-neondb,Short Insert,6,22.766085798s
+prewarm-neondb,Short Insert,7,26.359256274s
+prewarm-neondb,Short Insert,8,31.949515874s
+prewarm-neondb,Short Insert,9,38.956773939s
+prewarm-neondb,Short Insert,10,41.307542416s

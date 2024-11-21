@@ -5,17 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug neondb",
+            "name": "Debug cold-neondb",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "ntran/main.go",
             "args": [
-                "-policy", "cold-neondb"
+                "-policy", "cold-neondb",
+                "-max-in-flight", "9"
             ]
         },
         {
-            "name": "Debug smartneondb",
+            "name": "Debug prewarm-neondb",
             "type": "go",
             "request": "launch",
             "mode": "auto",
