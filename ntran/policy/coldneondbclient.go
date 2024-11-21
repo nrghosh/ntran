@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os/exec"
 	"strings"
 	"sync"
@@ -70,51 +71,49 @@ func (c *ColdNeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	return testCases, nil
 }
 
-// TODO: each neon command we run _must_ succeed, or else the test fails. So, implement
-// a longer retry loop. Possibly make it ridiculously long?
-func (c *ColdNeonDBClient) runNeonCmd(cmd *exec.Cmd) (*strings.Builder, *strings.Builder) {
+func (c *ColdNeonDBClient) runNeonCmd(idempotentError string, args ...string) string {
+	exponents := []float64{1, 2, 3, 4, 5}
+	var err error
 	var stdout strings.Builder
 	var stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	maxAttempts := 10
-	for attempts := 0; attempts < maxAttempts; attempts++ {
-		if err := cmd.Run(); err != nil {
-			if strings.Contains(err.Error(), "ERROR:") {
-				if attempts == maxAttempts {
-					log.Default().Println(stderr.String())
-					log.Fatal(err)
-				} else {
-					time.Sleep(time.Duration(1+attempts) * time.Second)
-					continue
-				}
+	shouldBreak := false
+	for {
+		for _, exponent := range exponents {
+			cmd := exec.Command("neon", args...)
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			err = cmd.Run()
+			if err == nil || (idempotentError != "" && strings.Contains(err.Error(), idempotentError)) {
+				shouldBreak = true
+				break
+			} else {
+				log.Printf("error running command \"%v\" %v", args, err)
+				log.Print(stderr.String())
+				time.Sleep(time.Duration(math.Pow(2, exponent)) * time.Second)
 			}
 		}
+		if shouldBreak {
+			break
+		}
 	}
-	return &stdout, &stderr
+
+	return stdout.String()
 }
 
 func (c *ColdNeonDBClient) deleteBranch(name string) {
-	cmd := exec.Command("neon", "branch", "delete", name)
-	c.runNeonCmd(cmd)
+	c.runNeonCmd(fmt.Sprintf("branch %s not found", name), "branch", "delete", name)
 }
 
 func (c *ColdNeonDBClient) getConnectionString(branchName string) string {
-	cmd := exec.Command("neon", "connection-string", branchName)
-	stdout, _ := c.runNeonCmd(cmd)
-	return strings.TrimSpace(stdout.String())
+	stdout := c.runNeonCmd("", "connection-string", branchName)
+	return strings.TrimSpace(stdout)
 }
 
 func (c *ColdNeonDBClient) createBranch(name string) string {
-	cmd := exec.Command(
-		"neon", "branch", "create",
-		"--name", name,
-		"--output", "json",
-	)
-	stdout, _ := c.runNeonCmd(cmd)
+	stdout := c.runNeonCmd("branch already exists", "branch", "create", "--name", name, "--output", "json")
 
 	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(stdout.String()), &result); err != nil {
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		log.Fatal(err)
 	}
 

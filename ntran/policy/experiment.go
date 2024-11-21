@@ -35,17 +35,23 @@ func (e *Experiment) Start(csvDirArg string) error {
 		e.csvFile.Close()
 		return err
 	}
+	e.csvWriter.Flush()
 	return nil
 }
 
-func (e *Experiment) Log(record Record) {
-	e.csvWriter.Write([]string{
+func (e *Experiment) Log(record Record) error {
+	err := e.csvWriter.Write([]string{
 		record.Policy,
 		record.TestCase,
 		record.TransactionCount,
 		record.Duration,
 	})
+	if err != nil {
+		e.csvFile.Close()
+		return err
+	}
 	e.csvWriter.Flush()
+	return nil
 }
 
 func (e *Experiment) End() {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os/exec"
 	"sync"
 	"time"
 
@@ -19,8 +18,7 @@ type PreWarmNeonDBClient struct {
 }
 
 func (c *PreWarmNeonDBClient) addCompute(branchName string) {
-	cmd := exec.Command("neon", "branch", "add-compute", branchName, "--type", "read_write")
-	c.runNeonCmd(cmd)
+	c.runNeonCmd("read_write endpoint already exists", "branch", "add-compute", branchName, "--type", "read_write")
 }
 
 func (c *PreWarmNeonDBClient) moveBranchesToTargetHead(targetBranchName string) {
@@ -33,27 +31,18 @@ func (c *PreWarmNeonDBClient) moveBranchesToTargetHead(targetBranchName string) 
 }
 
 func (c *PreWarmNeonDBClient) renameBranch(oldBranchName string, newBranchName string) {
-	cmd := exec.Command(
-		"neon", "branch",
-		"rename", oldBranchName, newBranchName,
-	)
-	c.runNeonCmd(cmd)
+	c.runNeonCmd(fmt.Sprintf("Branch %s not found", oldBranchName), "branch", "rename", oldBranchName, newBranchName)
 }
 
 func (c *PreWarmNeonDBClient) makeBranchDefault(branchName string) {
-	cmd := exec.Command(
-		"neon", "branch",
-		"set-default", branchName,
-	)
-	c.runNeonCmd(cmd)
+	c.runNeonCmd("", "branch", "set-default", branchName)
 	c.defaultBranchName = branchName
 }
 
 func (c *PreWarmNeonDBClient) moveBranchToHead(branchName string, targetBranchName string, arg ...string) {
 	args := []string{"branch", "restore", branchName, targetBranchName}
 	args = append(args, arg...)
-	cmd := exec.Command("neon", args...)
-	c.runNeonCmd(cmd)
+	c.runNeonCmd("", args...)
 }
 
 func (c *PreWarmNeonDBClient) GetName() string {

@@ -27,10 +27,13 @@ func (b *Benchmark) Log() {
 	duration := b.endTime.Sub(b.startTime)
 	logger := log.Default()
 	logger.Printf("Policy: %v | Test Case: %v | Transaction Count: %v | Duration: %v\n", b.Policy, b.TestCase, b.TransactionCount, duration)
-	b.Experiment.Log(Record{
+	err := b.Experiment.Log(Record{
 		Policy:           b.Policy,
 		TestCase:         b.TestCase,
 		TransactionCount: fmt.Sprintf("%d", b.TransactionCount),
 		Duration:         duration.String(),
 	})
+	if err != nil {
+		logger.Fatalf("error writing experiment result: %v", err)
+	}
 }

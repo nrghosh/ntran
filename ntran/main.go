@@ -54,6 +54,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("error specifying max number of in-flight transactions to handle")
 	}
+	if maxInFlight < 2 {
+		log.Fatalf("max number of in-flight transactions must be at least 2")
+	}
 
 	experiment := policy.Experiment{Policy: *policyArg, MaxInFlight: maxInFlight}
 	err = experiment.Start(*csvDirArg)
@@ -68,7 +71,7 @@ func main() {
 	// more concurrent transactions than others. specifically, duckdb
 	// can handle up to 500, whereas neondb free-tier can handle up to 9.
 	step := 1
-	for inFlight := 1; inFlight <= maxInFlight; inFlight += step {
+	for inFlight := 2; inFlight <= maxInFlight; inFlight += step {
 		err = dbClient.Scaffold(inFlight)
 		if err != nil {
 			log.Fatalf("error scaffolding the database: %v", err)
