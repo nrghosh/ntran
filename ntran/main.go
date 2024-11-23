@@ -66,13 +66,23 @@ func main() {
 		log.Fatalf("error: %v", err)
 	}
 
+	scaffold_schema, err := os.ReadFile("../schemas/schema.sql")
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+
+	rollback_schema, err := os.ReadFile("../schemas/rollback.sql")
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+
 	// maybe we want the clients to own how to progress to the next
 	// transaction level? might be the case that some policies can handle
 	// more concurrent transactions than others. specifically, duckdb
 	// can handle up to 500, whereas neondb free-tier can handle up to 9.
 	step := 1
 	for inFlight := 2; inFlight <= maxInFlight; inFlight += step {
-		err = dbClient.Scaffold(inFlight)
+		err = dbClient.Scaffold(string(scaffold_schema), inFlight)
 		if err != nil {
 			log.Fatalf("error scaffolding the database: %v", err)
 		}
@@ -84,7 +94,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error executing: %v", err)
 		}
-		err = dbClient.Cleanup()
+		err = dbClient.Cleanup(string(rollback_schema))
 		if err != nil {
 			log.Fatalf("error cleaning up: %v", err)
 		}

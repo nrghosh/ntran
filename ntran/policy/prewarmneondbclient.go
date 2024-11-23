@@ -25,7 +25,6 @@ func (c *PreWarmNeonDBClient) moveBranchesToTargetHead(targetBranchName string) 
 	for _, branch := range c.branches {
 		if branch.Name != targetBranchName {
 			c.moveBranchToHead(branch.Name, targetBranchName)
-			time.Sleep(5 * time.Millisecond)
 		}
 	}
 }
@@ -49,8 +48,8 @@ func (c *PreWarmNeonDBClient) GetName() string {
 	return "prewarm-neondb"
 }
 
-func (c *PreWarmNeonDBClient) Scaffold(inFlight int) error {
-	err := c.ColdNeonDBClient.Scaffold(inFlight)
+func (c *PreWarmNeonDBClient) Scaffold(schema string, inFlight int) error {
+	err := c.ColdNeonDBClient.Scaffold(schema, inFlight)
 	if err != nil {
 		return err
 	}
@@ -67,7 +66,6 @@ func (c *PreWarmNeonDBClient) Scaffold(inFlight int) error {
 		db := fmt.Sprintf("db_%v", i)
 		connStr := c.createBranch(db)
 		c.branches = append(c.branches, BranchInfo{Name: db, ConnStr: connStr})
-		time.Sleep(5 * time.Millisecond)
 	}
 	lastdb := fmt.Sprintf("db_%v", inFlight)
 	c.moveBranchToHead("main", "db_0", "--preserve-under-name", "oldmain")
@@ -161,7 +159,7 @@ func (c *PreWarmNeonDBClient) Execute(testCases []TestCase, experiment *Experime
 	return nil
 }
 
-func (c *PreWarmNeonDBClient) Cleanup() error {
+func (c *PreWarmNeonDBClient) Cleanup(sql string) error {
 	currDefaultBranchName := c.defaultBranchName
 	for _, branchName := range c.branches {
 		if branchName.Name != currDefaultBranchName {
@@ -175,9 +173,6 @@ func (c *PreWarmNeonDBClient) Cleanup() error {
 	c.deleteBranch(currDefaultBranchName)
 	c.branches = []BranchInfo{}
 
-	// neon is super sensitive to sequential branching
-	// calls back and forth. so, give it some breathing room.
-	time.Sleep(5 * time.Second)
-
-	return nil
+	c.mainConnStr = c.getConnectionString("main")
+	return c.ColdNeonDBClient.Cleanup(sql)
 }

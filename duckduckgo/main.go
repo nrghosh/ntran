@@ -14,7 +14,7 @@ import (
 
 const (
 	dbPath     = "./state.db"
-	schemaPath = "./schema.sql"
+	schemaPath = "../schemas/schema.sql"
 )
 
 type ExperimentConfig struct {
