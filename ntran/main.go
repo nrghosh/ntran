@@ -30,7 +30,7 @@ func setupLog(logDir string) (*os.File, error) {
 func main() {
 	policyArg := flag.String("policy", "serial-snapshot", "the policy to run [serial-snapshot, duckdb, cold-neondb, prewarm-neondb]")
 	logDirArg := flag.String("log-dir", "./logs", "the directory to write logs to")
-	csvDirArg := flag.String("csv-dir", "./csvs", "the directory to write csv output for analysis input")
+	csvDirArg := flag.String("csv-dir", "./results", "the directory to write csv output for analysis input")
 	maxInFlightArg := flag.String("max-in-flight", "10", "the total number of concurrent, in-flight transactions to consider")
 
 	flag.Parse()
