@@ -1,9 +1,0 @@
-Policy,TestCase,TransactionCount,Duration
-cold-neondb,Short Insert,2,3.497153054s
-cold-neondb,Short Insert,3,4.823580601s
-cold-neondb,Short Insert,4,9.28362307s
-cold-neondb,Short Insert,5,10.201051384s
-cold-neondb,Short Insert,6,20.848335151s
-cold-neondb,Short Insert,7,22.447260893s
-cold-neondb,Short Insert,8,30.060019179s
-cold-neondb,Short Insert,9,34.773943198s

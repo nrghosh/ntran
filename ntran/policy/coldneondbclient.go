@@ -35,7 +35,7 @@ func (c *ColdNeonDBClient) GetName() string {
 	return "cold-neondb"
 }
 
-func (c *ColdNeonDBClient) Scaffold(inFlight int) error {
+func (c *ColdNeonDBClient) Scaffold(sql string, inFlight int) error {
 	c.mainConnStr = c.getConnectionString("main")
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
@@ -43,7 +43,7 @@ func (c *ColdNeonDBClient) Scaffold(inFlight int) error {
 	}
 	defer conn.Close(context.Background())
 
-	_, err = conn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, balance INTEGER);")
+	_, err = conn.Exec(context.Background(), sql)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (c *ColdNeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
 	var shortInsertStatements []Statement
 	for i := 0; i < inFlight; i++ {
 		statement := Statement{
-			Command: fmt.Sprintf("INSERT INTO users (id, balance) VALUES (%d, 100)", i+1),
+			Command: fmt.Sprintf("INSERT INTO users (id, balance) VALUES (2222, %d)", i+1),
 			Query:   "SELECT * FROM users;",
 		}
 		shortInsertStatements = append(shortInsertStatements, statement)
@@ -264,14 +264,14 @@ func (c *ColdNeonDBClient) Execute(testCases []TestCase, experiment *Experiment)
 	return nil
 }
 
-func (c *ColdNeonDBClient) Cleanup() error {
+func (c *ColdNeonDBClient) Cleanup(sql string) error {
 	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close(context.Background())
 
-	_, err = conn.Exec(context.Background(), "DROP TABLE users;")
+	_, err = conn.Exec(context.Background(), sql)
 	if err != nil {
 		return err
 	}

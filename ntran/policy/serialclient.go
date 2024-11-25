@@ -26,7 +26,7 @@ func (c *SerialClient) GetName() string {
 	return "serial-snapshot"
 }
 
-func (c *SerialClient) Scaffold(inFlight int) error {
+func (c *SerialClient) Scaffold(schema string, inFlight int) error {
 	err := godotenv.Load()
 	if err != nil {
 		return fmt.Errorf("error loading .env file")
@@ -165,6 +165,6 @@ func (c *SerialClient) Execute(testCases []TestCase, experiment *Experiment) err
 	return nil
 }
 
-func (c *SerialClient) Cleanup() error {
+func (c *SerialClient) Cleanup(sql string) error {
 	return fmt.Errorf("SerialClient Cleanup unimplemented")
 }

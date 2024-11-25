@@ -14,7 +14,7 @@ func (c *DuckDBClient) GetName() string {
 	return "duckdb"
 }
 
-func (c *DuckDBClient) Scaffold(inFlight int) error {
+func (c *DuckDBClient) Scaffold(schema string, inFlight int) error {
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
 		return err
@@ -69,6 +69,6 @@ func (c *DuckDBClient) Execute(testCases []TestCase, experiment *Experiment) err
 	return nil
 }
 
-func (c *DuckDBClient) Cleanup() error {
+func (c *DuckDBClient) Cleanup(sql string) error {
 	return fmt.Errorf("DuckDBClient Cleanup unimplemented")
 }
