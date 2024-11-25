@@ -40,8 +40,8 @@ var TestCaseTemplates = map[string]Statement{
 	"Batched Insert": {Command: `INSERT INTO transactions (id, user_id, amount)
 	SELECT
 		(g + 5001) AS id,
-		(random() * 999 + %d)::INTEGER AS user_id,
-		500 AS amount
+		(random() * 999 + 1)::INTEGER AS user_id,
+		(500 + %d) AS amount
 	FROM generate_series(1, 100) AS g;`, Query: "SELECT %d, * FROM transactions;"},
 
 	"Select Secondary Index": {Query: "SELECT %d, * FROM transactions WHERE user_id = 23;"},
