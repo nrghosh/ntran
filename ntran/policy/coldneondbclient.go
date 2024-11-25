@@ -50,27 +50,6 @@ func (c *ColdNeonDBClient) Scaffold(sql string, inFlight int) error {
 	return nil
 }
 
-func (c *ColdNeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
-
-	var shortInsertStatements []Statement
-	for i := 0; i < inFlight; i++ {
-		statement := Statement{
-			Command: fmt.Sprintf("INSERT INTO users (id, balance) VALUES (2222, %d)", i+1),
-			Query:   "SELECT * FROM users;",
-		}
-		shortInsertStatements = append(shortInsertStatements, statement)
-	}
-
-	testCases := []TestCase{
-		{
-			Name:       "Short Insert",
-			Statements: shortInsertStatements,
-		},
-	}
-
-	return testCases, nil
-}
-
 func (c *ColdNeonDBClient) runNeonCmd(idempotentError string, args ...string) string {
 	exponents := []float64{1, 2, 3, 4, 5}
 	var err error
@@ -153,6 +132,8 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 
 	var rows pgx.Rows
 	var branchName string
+	var values []any
+
 	if statement.Command != "" {
 		if branchInfo, ok := branchInfoMap[statement.Command]; ok {
 			branchName = branchInfo.Name
@@ -164,12 +145,6 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 			defer conn.Close(context.Background())
 
 			_, err = conn.Exec(context.Background(), statement.Command)
-			if err != nil {
-				ch <- ExecutionResult{Error: err}
-				return
-			}
-
-			rows, err = conn.Query(context.Background(), statement.Query)
 			if err != nil {
 				ch <- ExecutionResult{Error: err}
 				return
@@ -189,77 +164,80 @@ func execute(mainConnStr string, statement Statement, branchInfoMap map[string]B
 			ch <- ExecutionResult{Error: err}
 			return
 		}
-	}
-	if rows.Next() {
-		v, err := rows.Values()
-		if err != nil {
-			ch <- ExecutionResult{Error: err}
-			return
+
+		if rows.Next() {
+			v, err := rows.Values()
+			if err != nil {
+				ch <- ExecutionResult{Error: err}
+				return
+			}
+			values = v
 		}
-		ch <- ExecutionResult{BranchName: branchName, Statement: statement, Values: v}
 	}
+
+	ch <- ExecutionResult{BranchName: branchName, Statement: statement, Values: values}
 }
 
-func (c *ColdNeonDBClient) Execute(testCases []TestCase, experiment *Experiment) error {
+func (c *ColdNeonDBClient) Execute(testCase TestCase, experiment *Experiment) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
-	for i, testCase := range testCases {
-		benchmark := Benchmark{
-			Experiment:       experiment,
-			Policy:           c.GetName(),
-			TestCase:         testCase.Name,
-			TransactionCount: len(testCase.Statements),
-		}
-		benchmark.Start()
+	benchmark := Benchmark{
+		Experiment:       experiment,
+		Policy:           c.GetName(),
+		TestCase:         testCase.Name,
+		TransactionCount: len(testCase.Statements),
+	}
+	benchmark.Start()
 
-		branchInfoMap := make(map[string]BranchInfo)
+	branchInfoMap := make(map[string]BranchInfo)
 
-		// assume all the commands are different. will need to rework if some end
-		// up being the same.
+	// assume all the commands are different. will need to rework if some end
+	// up being the same.
 
-		for j, statement := range testCase.Statements {
-			if statement.Command != "" {
-				if _, ok := branchInfoMap[statement.Command]; !ok {
-					db := fmt.Sprintf("db_%v_%v", i, j)
-					branchInfoMap[statement.Command] = BranchInfo{Name: db, ConnStr: c.createBranch(db)}
-				}
+	for i, statement := range testCase.Statements {
+		if statement.Command != "" {
+			if _, ok := branchInfoMap[statement.Command]; !ok {
+				db := fmt.Sprintf("db_%v", i)
+				branchInfoMap[statement.Command] = BranchInfo{Name: db, ConnStr: c.createBranch(db)}
 			}
 		}
+	}
 
-		var results []ExecutionResult
-		ch := make(chan ExecutionResult)
-		var wg sync.WaitGroup
+	var results []ExecutionResult
+	ch := make(chan ExecutionResult)
+	var wg sync.WaitGroup
 
-		for _, statement := range testCase.Statements {
-			wg.Add(1)
-			go execute(c.mainConnStr, statement, branchInfoMap, &wg, ch)
+	for _, statement := range testCase.Statements {
+		wg.Add(1)
+		go execute(c.mainConnStr, statement, branchInfoMap, &wg, ch)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for result := range ch {
+		if result.Error == nil {
+			results = append(results, result)
+		} else {
+			log.Printf("error encountered while executing statement: %v", result.Error)
 		}
+	}
 
-		go func() {
-			wg.Wait()
-			close(ch)
-		}()
+	// dummy "consensus" step here -- take a random one.
+	// should _not_ close db that wins consensus.
+	// instead, make that the new mainConnStr (I think).
+	idx := rand.Intn(len(results))
+	err := c.commit(results[idx].Statement)
+	if err != nil {
+		log.Println(err)
+	}
 
-		for result := range ch {
-			if result.Error == nil {
-				results = append(results, result)
-			}
-		}
+	benchmark.End()
+	benchmark.Log()
 
-		// dummy "consensus" step here -- take a random one.
-		// should _not_ close db that wins consensus.
-		// instead, make that the new mainConnStr (I think).
-		idx := rand.Intn(len(results))
-		err := c.commit(results[idx].Statement)
-		if err != nil {
-			log.Default().Println(err)
-		}
-
-		benchmark.End()
-		benchmark.Log()
-
-		for _, branchInfo := range branchInfoMap {
-			c.deleteBranch(branchInfo.Name)
-		}
+	for _, branchInfo := range branchInfoMap {
+		c.deleteBranch(branchInfo.Name)
 	}
 	return nil
 }

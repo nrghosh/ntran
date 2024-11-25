@@ -115,47 +115,47 @@ func executeBranchInfo(statement Statement, branchInfo BranchInfo, wg *sync.Wait
 	ch <- ExecutionResult{BranchName: branchInfo.Name, Statement: statement, Values: values}
 }
 
-func (c *PreWarmNeonDBClient) Execute(testCases []TestCase, experiment *Experiment) error {
+func (c *PreWarmNeonDBClient) Execute(testCase TestCase, experiment *Experiment) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
-	for _, testCase := range testCases {
-		benchmark := Benchmark{
-			Experiment:       experiment,
-			Policy:           c.GetName(),
-			TestCase:         testCase.Name,
-			TransactionCount: len(testCase.Statements),
-		}
-		benchmark.Start()
-
-		var results []ExecutionResult
-		ch := make(chan ExecutionResult)
-		var wg sync.WaitGroup
-
-		for i, statement := range testCase.Statements {
-			wg.Add(1)
-			branchInfo := c.branches[i]
-			go executeBranchInfo(statement, branchInfo, &wg, ch)
-		}
-
-		go func() {
-			wg.Wait()
-			close(ch)
-		}()
-
-		for result := range ch {
-			if result.Error == nil {
-				results = append(results, result)
-			}
-		}
-
-		// dummy "consensus" step here -- take a random one.
-		idx := rand.Intn(len(results))
-		winningBranchName := results[idx].BranchName
-		c.makeBranchDefault(winningBranchName)
-		c.moveBranchesToTargetHead(winningBranchName)
-
-		benchmark.End()
-		benchmark.Log()
+	benchmark := Benchmark{
+		Experiment:       experiment,
+		Policy:           c.GetName(),
+		TestCase:         testCase.Name,
+		TransactionCount: len(testCase.Statements),
 	}
+	benchmark.Start()
+
+	var results []ExecutionResult
+	ch := make(chan ExecutionResult)
+	var wg sync.WaitGroup
+
+	for i, statement := range testCase.Statements {
+		wg.Add(1)
+		branchInfo := c.branches[i]
+		go executeBranchInfo(statement, branchInfo, &wg, ch)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for result := range ch {
+		if result.Error == nil {
+			results = append(results, result)
+		} else {
+			log.Printf("error encountered while executing statement: %v", result.Error)
+		}
+	}
+
+	// dummy "consensus" step here -- take a random one.
+	idx := rand.Intn(len(results))
+	winningBranchName := results[idx].BranchName
+	c.makeBranchDefault(winningBranchName)
+	c.moveBranchesToTargetHead(winningBranchName)
+
+	benchmark.End()
+	benchmark.Log()
 	return nil
 }
 

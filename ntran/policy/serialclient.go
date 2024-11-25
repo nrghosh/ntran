@@ -50,20 +50,7 @@ func (c *SerialClient) Scaffold(schema string, inFlight int) error {
 	return nil
 }
 
-func (c *SerialClient) GenerateSQL(inFlight int) ([]TestCase, error) {
-	testCases := []TestCase{
-		{
-			Name: "Short Insert",
-			Statements: []Statement{
-				{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
-				{Command: "INSERT INTO users (id, balance) VALUES (2, 200);", Query: "SELECT * FROM users;"},
-			},
-		},
-	}
-	return testCases, nil
-}
-
-func (c *SerialClient) Execute(testCases []TestCase, experiment *Experiment) error {
+func (c *SerialClient) Execute(testCase TestCase, experiment *Experiment) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
 
 	// Share DB connection across all TestCases
@@ -73,95 +60,92 @@ func (c *SerialClient) Execute(testCases []TestCase, experiment *Experiment) err
 	}
 	defer conn.Close(context.Background())
 
-	for i, testCase := range testCases {
-		benchmark := Benchmark{
-			Experiment:       experiment,
-			Policy:           c.GetName(),
-			TestCase:         testCase.Name,
-			TransactionCount: len(testCase.Statements),
-		}
-		benchmark.Start()
-
-		// Start parent transaction
-		parentTxn, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
-		if err != nil {
-			log.Fatalf("Failed to begin parent transaction: %v\n", err)
-		}
-
-		var states []interface{}
-		for j, statement := range testCase.Statements {
-
-			// Start nested transaction, rollback to this savepoint once state collected
-			_, err := parentTxn.Exec(context.Background(), "SAVEPOINT nested_txn")
-			if err != nil {
-				log.Fatalf("Failed to create savepoint for nested transaction: %v\n", err)
-			}
-
-			var rows pgx.Rows
-			if statement.Command != "" {
-				fmt.Sprintf("db_%v_%v", i, j)
-
-				// Command from TestCase
-				_, err = parentTxn.Exec(context.Background(), statement.Command)
-				if err != nil {
-					return err
-				}
-				// Query from TestCase
-				rows, err = parentTxn.Query(context.Background(), statement.Query)
-				if err != nil {
-					return err
-				}
-			} else {
-				// Query only, no Command
-				fmt.Println("running query only test")
-				rows, err = parentTxn.Query(context.Background(), statement.Query)
-				if err != nil {
-					return err
-				}
-			}
-
-			// Record state from the Query
-			if rows.Next() {
-				v, err := rows.Values()
-				if err != nil {
-					return err
-				}
-				states = append(states, v)
-			}
-			rows.Close() // required so connection is not considered busy during rollback
-
-			_, rollbackErr := parentTxn.Exec(context.Background(), "ROLLBACK TO SAVEPOINT nested_txn")
-			if rollbackErr != nil {
-				fmt.Println("failed")
-				log.Fatalf("Failed to rollback to savepoint for nested transaction: %v\n", rollbackErr)
-			}
-		}
-
-		// For now, choose random state as correct state
-		idx := rand.Intn(len(states))
-		log.Default().Printf("idx: %v; state: %v\n", idx, states[idx])
-
-		// Command from chosen Statement
-		_, err = parentTxn.Exec(context.Background(), testCase.Statements[idx].Command)
-		if err != nil {
-			return err
-		}
-		// PLACEHOLDER: Query from Chosen Statement, may do something with this later
-		placeholder, err := parentTxn.Query(context.Background(), testCase.Statements[idx].Query)
-		if err != nil {
-			return err
-		}
-		placeholder.Close() // avoid conn busy error
-
-		// Commit parent transaction with applied changes from one chosen Statement
-		err = parentTxn.Commit(context.Background())
-		if err != nil {
-			log.Fatalf("Failed to commit parent transaction: %v\n", err)
-		}
-
-		benchmark.End()
-		benchmark.Log()
+	benchmark := Benchmark{
+		Experiment:       experiment,
+		Policy:           c.GetName(),
+		TestCase:         testCase.Name,
+		TransactionCount: len(testCase.Statements),
 	}
+	benchmark.Start()
+
+	// Start parent transaction
+	parentTxn, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+	if err != nil {
+		log.Fatalf("Failed to begin parent transaction: %v\n", err)
+	}
+
+	var states []interface{}
+	for _, statement := range testCase.Statements {
+
+		// Start nested transaction, rollback to this savepoint once state collected
+		_, err := parentTxn.Exec(context.Background(), "SAVEPOINT nested_txn")
+		if err != nil {
+			log.Fatalf("Failed to create savepoint for nested transaction: %v\n", err)
+		}
+
+		var rows pgx.Rows
+		if statement.Command != "" {
+
+			// Command from TestCase
+			_, err = parentTxn.Exec(context.Background(), statement.Command)
+			if err != nil {
+				return err
+			}
+			// Query from TestCase
+			rows, err = parentTxn.Query(context.Background(), statement.Query)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Query only, no Command
+			fmt.Println("running query only test")
+			rows, err = parentTxn.Query(context.Background(), statement.Query)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Record state from the Query
+		if rows.Next() {
+			v, err := rows.Values()
+			if err != nil {
+				return err
+			}
+			states = append(states, v)
+		}
+		rows.Close() // required so connection is not considered busy during rollback
+
+		_, rollbackErr := parentTxn.Exec(context.Background(), "ROLLBACK TO SAVEPOINT nested_txn")
+		if rollbackErr != nil {
+			fmt.Println("failed")
+			log.Fatalf("Failed to rollback to savepoint for nested transaction: %v\n", rollbackErr)
+		}
+	}
+
+	// For now, choose random state as correct state
+	idx := rand.Intn(len(states))
+	log.Printf("idx: %v; state: %v\n", idx, states[idx])
+
+	// Command from chosen Statement
+	_, err = parentTxn.Exec(context.Background(), testCase.Statements[idx].Command)
+	if err != nil {
+		return err
+	}
+	// PLACEHOLDER: Query from Chosen Statement, may do something with this later
+	placeholder, err := parentTxn.Query(context.Background(), testCase.Statements[idx].Query)
+	if err != nil {
+		return err
+	}
+	placeholder.Close() // avoid conn busy error
+
+	// Commit parent transaction with applied changes from one chosen Statement
+	err = parentTxn.Commit(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to commit parent transaction: %v\n", err)
+	}
+
+	benchmark.End()
+	benchmark.Log()
 	return nil
 }
 
