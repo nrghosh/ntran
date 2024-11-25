@@ -88,7 +88,7 @@ func main() {
 		log.Fatalf("error: %v", err)
 	}
 
-	for inFlight := range dbClient.GetNumTransactionsInFlight() {
+	for _, inFlight := range dbClient.GetNumTransactionsInFlight() {
 		testCases, err := generateSQL(inFlight)
 		if err != nil {
 			log.Fatalf("error generating the SQL: %v", err)
