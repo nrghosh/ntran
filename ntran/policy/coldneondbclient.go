@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -33,6 +34,10 @@ type ExecutionResult struct {
 
 func (c *ColdNeonDBClient) GetName() string {
 	return "cold-neondb"
+}
+
+func (c *ColdNeonDBClient) GetNumTransactionsInFlight() []int {
+	return []int{2, 4, 6, 8, 9}
 }
 
 func (c *ColdNeonDBClient) Scaffold(sql string, inFlight int) error {
@@ -127,55 +132,55 @@ func (c *ColdNeonDBClient) commit(statement Statement) error {
 	return nil
 }
 
-func execute(mainConnStr string, statement Statement, branchInfoMap map[string]BranchInfo, wg *sync.WaitGroup, ch chan ExecutionResult) {
+func execute(statement Statement, branchInfoMap map[string]BranchInfo, wg *sync.WaitGroup, ch chan ExecutionResult) {
 	defer wg.Done()
 
 	var rows pgx.Rows
 	var branchName string
 	var values []any
+	var sql string
 
 	if statement.Command != "" {
-		if branchInfo, ok := branchInfoMap[statement.Command]; ok {
-			branchName = branchInfo.Name
-			conn, err := pgx.Connect(context.Background(), branchInfo.ConnStr)
-			if err != nil {
-				ch <- ExecutionResult{Error: err}
-				return
-			}
-			defer conn.Close(context.Background())
-
-			_, err = conn.Exec(context.Background(), statement.Command)
-			if err != nil {
-				ch <- ExecutionResult{Error: err}
-				return
-			}
-		}
+		sql = statement.Command
 	} else {
-		branchName = "main"
-		conn, err := pgx.Connect(context.Background(), mainConnStr)
+		sql = statement.Query
+	}
+
+	if branchInfo, ok := branchInfoMap[sql]; ok {
+		branchName = branchInfo.Name
+		conn, err := pgx.Connect(context.Background(), branchInfo.ConnStr)
 		if err != nil {
 			ch <- ExecutionResult{Error: err}
 			return
 		}
 		defer conn.Close(context.Background())
 
-		rows, err = conn.Query(context.Background(), statement.Query)
-		if err != nil {
-			ch <- ExecutionResult{Error: err}
-			return
-		}
-
-		if rows.Next() {
-			v, err := rows.Values()
+		if statement.Command != "" {
+			_, err = conn.Exec(context.Background(), statement.Command)
 			if err != nil {
 				ch <- ExecutionResult{Error: err}
 				return
 			}
-			values = v
-		}
-	}
+		} else {
+			rows, err = conn.Query(context.Background(), statement.Query)
+			if err != nil {
+				ch <- ExecutionResult{Error: err}
+				return
+			}
 
-	ch <- ExecutionResult{BranchName: branchName, Statement: statement, Values: values}
+			if rows.Next() {
+				v, err := rows.Values()
+				if err != nil {
+					ch <- ExecutionResult{Error: err}
+					return
+				}
+				values = v
+			}
+		}
+		ch <- ExecutionResult{BranchName: branchName, Statement: statement, Values: values}
+	} else {
+		ch <- ExecutionResult{Error: errors.New("could not find sql statement in branchInfoMap")}
+	}
 }
 
 func (c *ColdNeonDBClient) Execute(testCase TestCase, experiment *Experiment) error {
@@ -190,15 +195,20 @@ func (c *ColdNeonDBClient) Execute(testCase TestCase, experiment *Experiment) er
 
 	branchInfoMap := make(map[string]BranchInfo)
 
-	// assume all the commands are different. will need to rework if some end
+	// assume all the sql statements are different across
+	// concurrent transactions. will need to rework if some end
 	// up being the same.
 
 	for i, statement := range testCase.Statements {
+		var sql string
 		if statement.Command != "" {
-			if _, ok := branchInfoMap[statement.Command]; !ok {
-				db := fmt.Sprintf("db_%v", i)
-				branchInfoMap[statement.Command] = BranchInfo{Name: db, ConnStr: c.createBranch(db)}
-			}
+			sql = statement.Command
+		} else {
+			sql = statement.Query
+		}
+		if _, ok := branchInfoMap[sql]; !ok {
+			db := fmt.Sprintf("db_%v", i)
+			branchInfoMap[sql] = BranchInfo{Name: db, ConnStr: c.createBranch(db)}
 		}
 	}
 
@@ -208,7 +218,7 @@ func (c *ColdNeonDBClient) Execute(testCase TestCase, experiment *Experiment) er
 
 	for _, statement := range testCase.Statements {
 		wg.Add(1)
-		go execute(c.mainConnStr, statement, branchInfoMap, &wg, ch)
+		go execute(statement, branchInfoMap, &wg, ch)
 	}
 
 	go func() {

@@ -26,6 +26,10 @@ func (c *SerialClient) GetName() string {
 	return "serial-snapshot"
 }
 
+func (c *SerialClient) GetNumTransactionsInFlight() []int {
+	return []int{10, 25, 50, 100, 200, 500}
+}
+
 func (c *SerialClient) Scaffold(schema string, inFlight int) error {
 	err := godotenv.Load()
 	if err != nil {

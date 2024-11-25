@@ -48,6 +48,10 @@ func (c *PreWarmNeonDBClient) GetName() string {
 	return "prewarm-neondb"
 }
 
+func (c *PreWarmNeonDBClient) GetNumTransactionsInFlight() []int {
+	return []int{2, 4, 6, 8, 10}
+}
+
 func (c *PreWarmNeonDBClient) Scaffold(schema string, inFlight int) error {
 	err := c.ColdNeonDBClient.Scaffold(schema, inFlight)
 	if err != nil {

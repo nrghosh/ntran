@@ -8,10 +8,9 @@ import (
 )
 
 type Experiment struct {
-	Policy      string
-	MaxInFlight int
-	csvWriter   *csv.Writer
-	csvFile     *os.File
+	Policy    string
+	csvWriter *csv.Writer
+	csvFile   *os.File
 }
 
 type Record struct {
@@ -22,8 +21,8 @@ type Record struct {
 }
 
 func (e *Experiment) Start(csvDirArg string) error {
-	timestamp := time.Now().Format("2006-01-02_25-04-05")
-	filepath := fmt.Sprintf("%s/%s_%d_%s.csv", csvDirArg, e.Policy, e.MaxInFlight, timestamp)
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+	filepath := fmt.Sprintf("%s/%s_%s.csv", csvDirArg, e.Policy, timestamp)
 	var err error
 	e.csvFile, err = os.Create(filepath)
 	if err != nil {

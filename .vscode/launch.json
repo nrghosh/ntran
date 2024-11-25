@@ -23,8 +23,6 @@
             "args": [
                 "-policy",
                 "cold-neondb",
-                "-max-in-flight",
-                "9"
             ]
         },
         {
@@ -36,8 +34,6 @@
             "args": [
                 "-policy",
                 "prewarm-neondb",
-                "-max-in-flight",
-                "10"
             ]
         },
         {

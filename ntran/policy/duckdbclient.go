@@ -14,6 +14,10 @@ func (c *DuckDBClient) GetName() string {
 	return "duckdb"
 }
 
+func (c *DuckDBClient) GetNumTransactionsInFlight() []int {
+	return []int{10, 25, 50, 100, 200, 500}
+}
+
 func (c *DuckDBClient) Scaffold(schema string, inFlight int) error {
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
