@@ -12,8 +12,8 @@ type TestCase struct {
 }
 
 var TestCaseTemplates = map[string]Statement{
-	"Short Update": {Command: "UPDATE users SET balance = balance + %d WHERE id = 1;", Query: "SELECT %d, * FROM users WHERE id = 1"},  // point update
-	"Long Update":  {Command: "UPDATE users SET balance = balance + %d WHERE id > 0;", Query: "SELECT %d, * FROM users WHERE id > 0;"}, // full table scan
+	"Short Update": {Command: "UPDATE users SET balance = balance + %d WHERE id = 1;", Query: "SELECT %d, * FROM users WHERE id = 1"},                            // point update
+	"Long Update":  {Command: "UPDATE users SET balance = balance + %d WHERE status = 'inactive';", Query: "SELECT %d, * FROM users WHERE status = 'inactive';"}, // full table scan
 
 	// Reference: https://github.com/akopytov/sysbench/blob/master/src/lua/oltp_common.lua
 	"Point Select":    {Query: "SELECT %d, balance FROM users WHERE id = 1;"},
@@ -51,4 +51,11 @@ var TestCaseTemplates = map[string]Statement{
 							JOIN transactions t ON u.id = t.user_id
 							WHERE u.id = 23
 							GROUP BY u.id, u.balance;`},
+}
+
+var TestCaseTemplatesLite = map[string]Statement{
+	"Long Update":  TestCaseTemplates["Long Update"],
+	"Short Insert": TestCaseTemplates["Short Insert"],
+	"Select Scan":  TestCaseTemplates["Select Scan"],
+	"Select Join":  TestCaseTemplates["Select Join"],
 }

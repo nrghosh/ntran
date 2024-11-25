@@ -29,7 +29,7 @@ func setupLog(logDir string) (*os.File, error) {
 func generateSQL(inFlight int) ([]policy.TestCase, error) {
 
 	var testCases []policy.TestCase
-	for key, val := range policy.TestCaseTemplates {
+	for key, val := range policy.TestCaseTemplatesLite {
 		var statements []policy.Statement
 		for i := 0; i < inFlight; i++ {
 			statement := policy.Statement{}
