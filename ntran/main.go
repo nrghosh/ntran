@@ -27,6 +27,25 @@ func setupLog(logDir string) (*os.File, error) {
 	return logFile, err
 }
 
+func generateSQL(inFlight int) ([]policy.TestCase, error) {
+
+	var testCases []policy.TestCase
+	for key, val := range policy.TestCaseTemplates {
+		var statements []policy.Statement
+		for i := 0; i < inFlight; i++ {
+			statement := policy.Statement{
+				Command: fmt.Sprintf(val.Command, i+1),
+				Query:   val.Query,
+			}
+			statements = append(statements, statement)
+		}
+
+		testCases = append(testCases, policy.TestCase{Name: key, Statements: statements})
+	}
+
+	return testCases, nil
+}
+
 func main() {
 	policyArg := flag.String("policy", "serial-snapshot", "the policy to run [serial-snapshot, duckdb, cold-neondb, prewarm-neondb]")
 	logDirArg := flag.String("log-dir", "./logs", "the directory to write logs to")
@@ -86,7 +105,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error scaffolding the database: %v", err)
 		}
-		commands, err := dbClient.GenerateSQL(inFlight)
+		commands, err := generateSQL(inFlight)
 		if err != nil {
 			log.Fatalf("error generating the SQL: %v", err)
 		}

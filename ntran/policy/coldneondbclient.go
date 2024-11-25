@@ -50,27 +50,6 @@ func (c *ColdNeonDBClient) Scaffold(sql string, inFlight int) error {
 	return nil
 }
 
-func (c *ColdNeonDBClient) GenerateSQL(inFlight int) ([]TestCase, error) {
-
-	var shortInsertStatements []Statement
-	for i := 0; i < inFlight; i++ {
-		statement := Statement{
-			Command: fmt.Sprintf("INSERT INTO users (id, balance) VALUES (2222, %d)", i+1),
-			Query:   "SELECT * FROM users;",
-		}
-		shortInsertStatements = append(shortInsertStatements, statement)
-	}
-
-	testCases := []TestCase{
-		{
-			Name:       "Short Insert",
-			Statements: shortInsertStatements,
-		},
-	}
-
-	return testCases, nil
-}
-
 func (c *ColdNeonDBClient) runNeonCmd(idempotentError string, args ...string) string {
 	exponents := []float64{1, 2, 3, 4, 5}
 	var err error

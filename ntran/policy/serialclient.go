@@ -50,19 +50,6 @@ func (c *SerialClient) Scaffold(schema string, inFlight int) error {
 	return nil
 }
 
-func (c *SerialClient) GenerateSQL(inFlight int) ([]TestCase, error) {
-	testCases := []TestCase{
-		{
-			Name: "Short Insert",
-			Statements: []Statement{
-				{Command: "INSERT INTO users (id, balance) VALUES (1, 100);", Query: "SELECT * FROM users;"},
-				{Command: "INSERT INTO users (id, balance) VALUES (2, 200);", Query: "SELECT * FROM users;"},
-			},
-		},
-	}
-	return testCases, nil
-}
-
 func (c *SerialClient) Execute(testCases []TestCase, experiment *Experiment) error {
 	rand.Seed(uint64(time.Now().UnixNano()))
 
