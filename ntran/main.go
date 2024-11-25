@@ -33,9 +33,12 @@ func generateSQL(inFlight int) ([]policy.TestCase, error) {
 	for key, val := range policy.TestCaseTemplates {
 		var statements []policy.Statement
 		for i := 0; i < inFlight; i++ {
-			statement := policy.Statement{
-				Command: fmt.Sprintf(val.Command, i+1),
-				Query:   val.Query,
+			statement := policy.Statement{}
+			if val.Command != "" {
+				statement.Command = fmt.Sprintf(val.Command, i+1)
+			}
+			if val.Query != "" {
+				statement.Query = fmt.Sprintf(val.Query, i+1)
 			}
 			statements = append(statements, statement)
 		}
@@ -101,21 +104,27 @@ func main() {
 	// can handle up to 500, whereas neondb free-tier can handle up to 9.
 	step := 1
 	for inFlight := 2; inFlight <= maxInFlight; inFlight += step {
-		err = dbClient.Scaffold(string(scaffold_schema), inFlight)
-		if err != nil {
-			log.Fatalf("error scaffolding the database: %v", err)
-		}
-		commands, err := generateSQL(inFlight)
+		testCases, err := generateSQL(inFlight)
 		if err != nil {
 			log.Fatalf("error generating the SQL: %v", err)
 		}
-		err = dbClient.Execute(commands, &experiment)
-		if err != nil {
-			log.Fatalf("error executing: %v", err)
+
+		for _, testCase := range testCases {
+			err = dbClient.Scaffold(string(scaffold_schema), inFlight)
+			if err != nil {
+				log.Fatalf("error scaffolding the database: %v", err)
+			}
+
+			err = dbClient.Execute(testCase, &experiment)
+			if err != nil {
+				log.Fatalf("error executing: %v", err)
+			}
+
+			err = dbClient.Cleanup(string(rollback_schema))
+			if err != nil {
+				log.Fatalf("error cleaning up: %v", err)
+			}
 		}
-		err = dbClient.Cleanup(string(rollback_schema))
-		if err != nil {
-			log.Fatalf("error cleaning up: %v", err)
-		}
+
 	}
 }

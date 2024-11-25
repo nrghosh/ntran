@@ -12,8 +12,8 @@ type TestCase struct {
 }
 
 var TestCaseTemplates = map[string]Statement{
-	"Short Update": {Command: "UPDATE users SET balance = balance + %d WHERE id = 1;", Query: "SELECT * FROM users WHERE id = 1"},  // point update
-	"Long Update":  {Command: "UPDATE users SET balance = balance + %d WHERE id > 0;", Query: "SELECT * FROM users WHERE id > 0;"}, // full table scan
+	"Short Update": {Command: "UPDATE users SET balance = balance + %d WHERE id = 1;", Query: "SELECT %d, * FROM users WHERE id = 1"},  // point update
+	"Long Update":  {Command: "UPDATE users SET balance = balance + %d WHERE id > 0;", Query: "SELECT %d, * FROM users WHERE id > 0;"}, // full table scan
 
 	// Reference: https://github.com/akopytov/sysbench/blob/master/src/lua/oltp_common.lua
 	"Point Select":    {Query: "SELECT %d, balance FROM users WHERE id = 1;"},
@@ -21,11 +21,11 @@ var TestCaseTemplates = map[string]Statement{
 	"Sum Ranges":      {Query: "SELECT %d, SUM(balance) FROM users WHERE id BETWEEN 4 AND 4;"},
 	"Order Ranges":    {Query: "SELECT %d, balance FROM users WHERE id BETWEEN 2 AND 4 ORDER BY balance;"},
 	"Distinct Ranges": {Query: "SELECT DISTINCT %d, balance FROM users WHERE id BETWEEN 1 AND 4 ORDER BY balance;"},
-	"Short Delete":    {Command: "DELETE FROM users WHERE id = 2; -- %d", Query: "SELECT * from users;"},
-	"Short Insert":    {Command: "INSERT INTO users (id, balance) VALUES (2222, %d)", Query: "SELECT * FROM users WHERE id = 2222;"},
+	"Short Delete":    {Command: "DELETE FROM transactions WHERE user_id = 2; -- %d", Query: "SELECT %d, * from transactions WHERE user_id = 2;"},
+	"Short Insert":    {Command: "INSERT INTO users (id, balance) VALUES (2222, %d)", Query: "SELECT %d, * FROM users WHERE id = 2222;"},
 
 	// https://github.com/nrghosh/UnitedStatesofDB/issues/2
-	"Point Update Indexed": {Command: "UPDATE users SET balance = balance + %d WHERE id = 23;", Query: "SELECT * FROM users WHERE id = 23;"},
+	"Point Update Indexed": {Command: "UPDATE users SET balance = balance + %d WHERE id = 23;", Query: "SELECT %d, * FROM users WHERE id = 23;"},
 	"Point Update Non-Indexed": {Command: `WITH rows_to_update AS (
 		SELECT id
 		FROM users
@@ -34,7 +34,7 @@ var TestCaseTemplates = map[string]Statement{
 	)
 	UPDATE users
 	SET balance = balance + %d
-	WHERE id IN (SELECT id FROM rows_to_update);`, Query: "SELECT * FROM users;"},
+	WHERE id IN (SELECT id FROM rows_to_update);`, Query: "SELECT %d, * FROM users;"},
 
 	// Batch insert syntax supported by Postgres, but not DuckDB?
 	"Batched Insert": {Command: `INSERT INTO transactions (id, user_id, amount)
@@ -42,7 +42,7 @@ var TestCaseTemplates = map[string]Statement{
 		(g + 5001) AS id,
 		(random() * 999 + %d)::INTEGER AS user_id,
 		500 AS amount
-	FROM generate_series(1, 100) AS g;`, Query: "SELECT * FROM transactions;"},
+	FROM generate_series(1, 100) AS g;`, Query: "SELECT %d, * FROM transactions;"},
 
 	"Select Secondary Index": {Query: "SELECT %d, * FROM transactions WHERE user_id = 23;"},
 	"Select Scan":            {Query: "SELECT %d, * FROM users WHERE balance > 500;"},
