@@ -46,6 +46,17 @@
                 "-policy",
                 "duckdb",
             ]
-        }
+        },
+        {
+            "name": "Debug serial-snapshot",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "ntran/main.go",
+            "args": [
+                "-policy",
+                "serial-snapshot",
+            ]
+        },
     ]
 }

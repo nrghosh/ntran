@@ -30,7 +30,7 @@ func (c *SerialClient) GetNumTransactionsInFlight() []int {
 	return []int{10, 25, 50, 100, 200, 500}
 }
 
-func (c *SerialClient) Scaffold(schema string, inFlight int) error {
+func (c *SerialClient) Scaffold(sql string, inFlight int) error {
 	err := godotenv.Load()
 	if err != nil {
 		return fmt.Errorf("error loading .env file")
@@ -42,15 +42,11 @@ func (c *SerialClient) Scaffold(schema string, inFlight int) error {
 	}
 	defer conn.Close(context.Background())
 
-	// Clean table for tests
-	_, err = conn.Exec(context.Background(), "DROP TABLE IF EXISTS users;")
+	_, err = conn.Exec(context.Background(), sql)
 	if err != nil {
 		return err
 	}
-	_, err = conn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, balance INTEGER);")
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
@@ -78,7 +74,7 @@ func (c *SerialClient) Execute(testCase TestCase, experiment *Experiment) error 
 		log.Fatalf("Failed to begin parent transaction: %v\n", err)
 	}
 
-	var states []interface{}
+	var states []ExecutionResult
 	for _, statement := range testCase.Statements {
 
 		// Start nested transaction, rollback to this savepoint once state collected
@@ -95,29 +91,25 @@ func (c *SerialClient) Execute(testCase TestCase, experiment *Experiment) error 
 			if err != nil {
 				return err
 			}
-			// Query from TestCase
-			rows, err = parentTxn.Query(context.Background(), statement.Query)
-			if err != nil {
-				return err
-			}
+			states = append(states, ExecutionResult{Statement: statement, Values: []any{}})
+
 		} else {
 			// Query only, no Command
-			fmt.Println("running query only test")
 			rows, err = parentTxn.Query(context.Background(), statement.Query)
 			if err != nil {
 				return err
 			}
-		}
 
-		// Record state from the Query
-		if rows.Next() {
-			v, err := rows.Values()
-			if err != nil {
-				return err
+			// Record state from the Query
+			if rows.Next() {
+				v, err := rows.Values()
+				if err != nil {
+					return err
+				}
+				states = append(states, ExecutionResult{Statement: statement, Values: v})
 			}
-			states = append(states, v)
+			rows.Close() // required so connection is not considered busy during rollback
 		}
-		rows.Close() // required so connection is not considered busy during rollback
 
 		_, rollbackErr := parentTxn.Exec(context.Background(), "ROLLBACK TO SAVEPOINT nested_txn")
 		if rollbackErr != nil {
@@ -131,16 +123,12 @@ func (c *SerialClient) Execute(testCase TestCase, experiment *Experiment) error 
 	log.Printf("idx: %v; state: %v\n", idx, states[idx])
 
 	// Command from chosen Statement
-	_, err = parentTxn.Exec(context.Background(), testCase.Statements[idx].Command)
-	if err != nil {
-		return err
+	if states[idx].Statement.Command != "" {
+		_, err = parentTxn.Exec(context.Background(), testCase.Statements[idx].Command)
+		if err != nil {
+			return err
+		}
 	}
-	// PLACEHOLDER: Query from Chosen Statement, may do something with this later
-	placeholder, err := parentTxn.Query(context.Background(), testCase.Statements[idx].Query)
-	if err != nil {
-		return err
-	}
-	placeholder.Close() // avoid conn busy error
 
 	// Commit parent transaction with applied changes from one chosen Statement
 	err = parentTxn.Commit(context.Background())
@@ -150,9 +138,21 @@ func (c *SerialClient) Execute(testCase TestCase, experiment *Experiment) error 
 
 	benchmark.End()
 	benchmark.Log()
+
 	return nil
 }
 
 func (c *SerialClient) Cleanup(sql string) error {
-	return fmt.Errorf("SerialClient Cleanup unimplemented")
+	conn, err := pgx.Connect(context.Background(), c.mainConnStr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close(context.Background())
+
+	_, err = conn.Exec(context.Background(), sql)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

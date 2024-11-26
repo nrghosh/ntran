@@ -66,7 +66,7 @@ def create_neondb_figures(results: str, figures: str):
 
 def create_other_figures(results: str, figures: str):
     policies = [
-        "duckdb",
+        # "duckdb",
         "serial-snapshot",
     ]
     policy_dfs = []
@@ -88,11 +88,13 @@ def create_other_figures(results: str, figures: str):
         x="TransactionCount",
         y="Duration",
         color="Policy",
-        facet_row="TestCase",
+        facet_col="TestCase",
         range_y=(0, max_duration+(max_duration*.1)))
     fig.update_layout(
         xaxis_title="Transaction Count",
         yaxis_title="Duration (milliseconds)",
+        width=1000,
+        height=500,
     )
 
     figure_path = os.path.join(figures, "duckdb_and_serial.png")
@@ -114,5 +116,5 @@ if __name__ == "__main__":
     more transactions and take on the order of milliseconds for some tests.
     as a result, we separate out the figures.
     """
-    create_neondb_figures(args.results, args.figures)
+    # create_neondb_figures(args.results, args.figures)
     create_other_figures(args.results, args.figures)
