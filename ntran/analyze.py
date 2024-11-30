@@ -17,6 +17,10 @@ def get_latest_csv(policy: str, directory: str):
 def convert_duration_to_seconds(value):
     if value.endswith("ms"):
         return float(value[:-2]) / 1000
+    elif "m" in value:
+        parts = value.split("m")
+        parts[1] = parts[1][:-2]
+        return float(parts[0]) * 60 + float(parts[1])
     elif value.endswith("s"):
         return float(value[:-1])
     else:
@@ -25,6 +29,10 @@ def convert_duration_to_seconds(value):
 def convert_duration_to_milliseconds(value):
     if value.endswith("ms"):
         return float(value[:-2])
+    elif "m" in value:
+        parts = value.split("m")
+        parts[1] = parts[1][:-2]
+        return (float(parts[0]) * 60 + float(parts[1])) * 1000
     elif value.endswith("s"):
         return float(value[:-1]) * 1000
     else:
@@ -59,6 +67,8 @@ def create_neondb_figures(results: str, figures: str):
     fig.update_layout(
         xaxis_title="Transaction Count",
         yaxis_title="Duration (seconds)",
+        width=700,
+        height=700,
     )
 
     figure_path = os.path.join(figures, "neondb.png")
@@ -116,5 +126,5 @@ if __name__ == "__main__":
     more transactions and take on the order of milliseconds for some tests.
     as a result, we separate out the figures.
     """
-    # create_neondb_figures(args.results, args.figures)
+    create_neondb_figures(args.results, args.figures)
     create_other_figures(args.results, args.figures)
