@@ -1,8 +1,42 @@
 # Topics in Cloud Term Research Project - Data Systems for LLMS
 Authors: Nikhil Ghosh, Peter McNeely, Matthew Roger Nelson
 
-## Overview
+## ntran arch overview
+```
+ntran/
+│
+├── main.go         (Entry point, handles CLI)
+│                   ┌──────────────────┐
+├── policy/         │ Policy Interface │ 
+│   │               └──────────────────┘
+│   ├── policy.go   (Defines interface for all implementations)
+│   │    
+│   ├── Implementations ──────────────────────┐
+│   │   ├── serialclient.go     (PostgreSQL)  │
+│   │   ├── duckdbparallelclient.go (DuckDB)  │ Share common test cases
+│   │   ├── duckdbserialclient.go (DuckDB)    │ and benchmarking logic
+│   │   ├── coldneondbclient.go (NeonDB)      │ 
+│   │   └── prewarmneondbclient.go (NeonDB)   ┘
+│   │
+│   ├── queries.go   (Shared SQL test cases)
+│   ├── benchmark.go (Performance measurement)
+│   └── experiment.go (Results collection)
+│
+├── schemas/        (Database schemas)
+│   ├── schema.sql    (Initial setup)
+│   └── rollback.sql  (Cleanup)
+│
+└── results/        (Benchmark outputs)
+    └── *.csv       (Raw timing data)
 
+Flow:
+ ┌─────────┐    ┌──────────┐    ┌───────────────┐    ┌──────────┐
+ │  Setup  │ -> │ Execute  │ -> │ Random Winner │ -> │ Cleanup  │
+ └─────────┘    └──────────┘    └───────────────┘    └──────────┘
+     │              │                   │                 │
+ schema.sql     N parallel        Pick 1 result      rollback.sql
+                transactions      to commit
+```
 []
 
 ## Implementations
