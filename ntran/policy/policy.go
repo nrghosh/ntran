@@ -20,7 +20,8 @@ type Policy interface {
 func CreateClient(policy string) (Policy, error) {
 	clientRegistry := []Policy{
 		&SerialClient{},
-		&DuckDBClient{},
+		&DuckDBParallelClient{},
+		&DuckDBSerialClient{},
 		&ColdNeonDBClient{},
 		&PreWarmNeonDBClient{},
 	}
