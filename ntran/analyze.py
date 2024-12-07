@@ -160,8 +160,8 @@ if __name__ == "__main__":
         prog="db systems for llm agents results analyzer",
         description="reads the results directory and crafts figures",
     )
-    parser.add_argument("-r", "--results", default="./results", required=False)
-    parser.add_argument("-f", "--figures", default="./figures", required=False)
+    parser.add_argument("-r", "--results", default="./ntran/results", required=False)
+    parser.add_argument("-f", "--figures", default="./ntran/figures", required=False)
     args = parser.parse_args()
     
     """
