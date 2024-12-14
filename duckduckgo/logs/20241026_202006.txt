@@ -1,1 +1,0 @@
-Mode: serial | Transaction: long | # Transactions: 100 | Duration: 29.146042ms

@@ -29,30 +29,30 @@ func setupLog(logDir string) (*os.File, error) {
 }
 
 func generateSQL(inFlight int) ([]policy.TestCase, error) {
-    var testCases []policy.TestCase
-    for key, val := range policy.TestCaseTemplatesLite {
-        var statements []policy.Statement
-        for i := 0; i < inFlight; i++ {
-            statement := policy.Statement{}
-            if val.Command != "" {
-                // Replace %d with the current iteration index if needed
-                statement.Command = fmt.Sprintf(val.Command, i)
-            }
-            if val.Query != "" {
-                // Replace %d with the current iteration index if needed
-                statement.Query = fmt.Sprintf(val.Query, i)
-            }
-            statements = append(statements, statement)
-        }
+	var testCases []policy.TestCase
+	for key, val := range policy.TestCaseTemplatesLite {
+		var statements []policy.Statement
+		for i := 0; i < inFlight; i++ {
+			statement := policy.Statement{}
+			if val.Command != "" {
+				// Replace %d with the current iteration index if needed
+				statement.Command = fmt.Sprintf(val.Command, i)
+			}
+			if val.Query != "" {
+				// Replace %d with the current iteration index if needed
+				statement.Query = fmt.Sprintf(val.Query, i)
+			}
+			statements = append(statements, statement)
+		}
 
-        testCases = append(testCases, policy.TestCase{Name: key, Statements: statements})
-    }
+		testCases = append(testCases, policy.TestCase{Name: key, Statements: statements})
+	}
 
-    return testCases, nil
+	return testCases, nil
 }
 
 func main() {
-	policyArg := flag.String("policy", "serial-snapshot", "the policy to run [serial-snapshot, parallel-duckdb, cold-neondb, prewarm-neondb]")
+	policyArg := flag.String("policy", "serial-snapshot", "the policy to run [serial-snapshot, duckdb-parallel, duckdb-serial, cold-neondb, prewarm-neondb]")
 	logDirArg := flag.String("log-dir", "./logs", "the directory to write logs to")
 	csvDirArg := flag.String("csv-dir", "./results", "the directory to write csv output for analysis input")
 

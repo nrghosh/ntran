@@ -1,16 +1,8 @@
--- -- Create users table
--- CREATE TABLE users (
---     id INTEGER PRIMARY KEY,
---     balance INTEGER
--- );
+/*
+ * This file is only used for scaffolding the database tables and
+ * seeding them with data
+ */
 
--- -- Insert (10, 100, 1k, 10k, 100k, 1M) users with a balance of 1000 each
--- INSERT INTO users (id, balance)
--- SELECT generate_series AS id, 1000 FROM generate_series(1, 1000);
-
--- -- File only used for initializing the database, not each individual test cause of
--- -- queries
--- New Schema
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,  -- Indexed by default (PRIMARY KEY)
     balance INTEGER,
@@ -27,7 +19,7 @@ CREATE TABLE transactions (
 -- index for join queries
 CREATE INDEX idx_transactions_user_id ON transactions(user_id);
 
--- users - 1000 records
+-- users - 100,000 records
 INSERT INTO users (id, balance, status)
 SELECT
     generate_series AS id,
@@ -36,12 +28,12 @@ SELECT
         WHEN 0 THEN 'active'
         ELSE 'inactive'
     END AS status
-FROM generate_series(1, 1000);
+FROM generate_series(1, 100000);
 
--- transactions - 5000 records
+-- transactions - 500,000 records
 INSERT INTO transactions (id, user_id, amount)
 SELECT
     generate_series AS id,
     (random() * 999 + 1)::INTEGER AS user_id,
     (random() * 1000)::INTEGER AS amount
-FROM generate_series(1, 5000);
+FROM generate_series(1, 500000);
