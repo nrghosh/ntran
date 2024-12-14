@@ -1,0 +1,21 @@
+Policy,TestCase,TransactionCount,Duration
+prewarm-neondb,Select Join,2,2.908141986s
+prewarm-neondb,Long Update,2,5.75257498s
+prewarm-neondb,Short Insert,2,4.638423168s
+prewarm-neondb,Select Scan,2,2.6715814s
+prewarm-neondb,Select Scan,4,13.976965792s
+prewarm-neondb,Select Join,4,13.098018368s
+prewarm-neondb,Long Update,4,14.231141848s
+prewarm-neondb,Short Insert,4,12.95874312s
+prewarm-neondb,Select Scan,6,21.466422224s
+prewarm-neondb,Select Join,6,19.651543268s
+prewarm-neondb,Long Update,6,22.835623014s
+prewarm-neondb,Short Insert,6,21.682709228s
+prewarm-neondb,Short Insert,7,23.848614719s
+prewarm-neondb,Select Scan,7,26.942543832s
+prewarm-neondb,Select Join,7,27.005453619s
+prewarm-neondb,Long Update,7,26.574187616s
+prewarm-neondb,Long Update,8,31.398523133s
+prewarm-neondb,Short Insert,8,31.069455652s
+prewarm-neondb,Select Scan,8,30.699801706s
+prewarm-neondb,Select Join,8,25.952796289s

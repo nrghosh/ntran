@@ -1,0 +1,25 @@
+Policy,TestCase,TransactionCount,Duration
+serial-snapshot,Long Update,10,3.107177478s
+serial-snapshot,Short Insert,10,4.174569ms
+serial-snapshot,Select Scan,10,622.164077ms
+serial-snapshot,Select Join,10,17.884817ms
+serial-snapshot,Long Update,25,7.533119552s
+serial-snapshot,Short Insert,25,9.070819ms
+serial-snapshot,Select Scan,25,1.774277401s
+serial-snapshot,Select Join,25,31.025076ms
+serial-snapshot,Long Update,50,14.080061921s
+serial-snapshot,Short Insert,50,15.342664ms
+serial-snapshot,Select Scan,50,3.081082609s
+serial-snapshot,Select Join,50,70.020594ms
+serial-snapshot,Long Update,100,29.620533688s
+serial-snapshot,Short Insert,100,30.73554ms
+serial-snapshot,Select Scan,100,6.158009971s
+serial-snapshot,Select Join,100,103.191555ms
+serial-snapshot,Select Scan,200,11.974770212s
+serial-snapshot,Select Join,200,222.84657ms
+serial-snapshot,Long Update,200,1m20.584258667s
+serial-snapshot,Short Insert,200,74.861745ms
+serial-snapshot,Long Update,500,4m32.196181405s
+serial-snapshot,Short Insert,500,165.109545ms
+serial-snapshot,Select Scan,500,29.97053043s
+serial-snapshot,Select Join,500,555.549326ms
