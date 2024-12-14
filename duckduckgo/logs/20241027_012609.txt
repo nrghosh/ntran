@@ -1,1 +1,0 @@
-Mode: parallel | Transaction: long | # Transactions: 500 | Duration: 2.750218875s
