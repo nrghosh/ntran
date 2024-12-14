@@ -75,6 +75,9 @@ This policy depends on the `neon` cli tool for branch management commands. To do
 
 The NeonDB project used by the authors is https://console.neon.tech/app/projects/patient-hall-76729406.
 
+## Analyzing Policy Results
+ntran provies a way to analyze the results of its experiment runs. This analyzer depends on a Poetry installation, so be sure to get that (https://python-poetry.org/docs/). Once poetry is installed, run `poetry install` to install its dependencies. Then, to analyze the results and generate .pngs (in the figures/ directory), run `poetry run python ntran/analyze.py`.
+
 ## Links
 [Design Doc](https://docs.google.com/document/d/1Ep7d3W3R-nh-JVPL33aEnP9De8h6Wffa27PUNAkGWm8/edit?usp=sharing)
 
