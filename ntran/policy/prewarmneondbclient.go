@@ -49,7 +49,7 @@ func (c *PreWarmNeonDBClient) GetName() string {
 }
 
 func (c *PreWarmNeonDBClient) GetNumTransactionsInFlight() []int {
-	return []int{2, 4, 6, 8, 10}
+	return []int{2, 4, 6, 8, 9}
 }
 
 func (c *PreWarmNeonDBClient) Scaffold(schema string, inFlight int) error {
