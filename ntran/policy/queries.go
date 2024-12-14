@@ -22,7 +22,7 @@ var TestCaseTemplates = map[string]Statement{
 	"Order Ranges":    {Query: "SELECT %d, balance FROM users WHERE id BETWEEN 2 AND 4 ORDER BY balance;"},
 	"Distinct Ranges": {Query: "SELECT DISTINCT %d, balance FROM users WHERE id BETWEEN 1 AND 4 ORDER BY balance;"},
 	"Short Delete":    {Command: "DELETE FROM transactions WHERE user_id = 2; -- %d", Query: "SELECT %d, * from transactions WHERE user_id = 2;"},
-	"Short Insert":    {Command: "INSERT INTO users (id, balance) VALUES (2222, %d)", Query: "SELECT %d, * FROM users WHERE id = 2222;"},
+	"Short Insert":    {Command: "INSERT INTO users (id, balance) VALUES (200000, %d)", Query: "SELECT %d, * FROM users WHERE id = 200000;"},
 
 	// https://github.com/nrghosh/UnitedStatesofDB/issues/2
 	"Point Update Indexed": {Command: "UPDATE users SET balance = balance + %d WHERE id = 23;", Query: "SELECT %d, * FROM users WHERE id = 23;"},
