@@ -33,12 +33,12 @@ def convert_duration_to_milliseconds(value):
             return float(value) * 0.001
         elif value.endswith('ms'):  
             return float(value[:-2])
-        elif value.endswith('s') and not value.endswith('us') and not value.endswith('µs'):  
-            return float(value[:-1]) * 1000
         elif "m" in value:  
             parts = value.split("m")
             parts[1] = parts[1][:-1]  
             return (float(parts[0]) * 60 + float(parts[1])) * 1000
+        elif value.endswith('s') and not value.endswith('us') and not value.endswith('µs'):  
+            return float(value[:-1]) * 1000
         else:
             return float(value)
     except Exception as e:
