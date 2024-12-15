@@ -61,19 +61,19 @@ def create_neondb_figures(results: str, figures: str):
         return
 
     df = pd.concat(policy_dfs)
-    df["Duration"] = df["Duration"].apply(convert_duration_to_seconds)
-    max_duration = df["Duration"].max()
+    df["Duration (secs)"] = df["Duration"].apply(convert_duration_to_seconds)
+    max_duration = df["Duration (secs)"].max()
+    del df["Duration"]
 
     fig = px.scatter(
         df,
         x="TransactionCount",
-        y="Duration",
+        y="Duration (secs)",
         color="Policy",
         facet_row="TestCase",
         range_y=(0, max_duration+(max_duration*.1)))
     fig.update_layout(
         xaxis_title="Transaction Count",
-        yaxis_title="Duration (seconds)",
         width=700,
         height=700,
     )
