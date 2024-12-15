@@ -74,8 +74,14 @@ def create_neondb_figures(results: str, figures: str):
         range_y=(0, max_duration+(max_duration*.1)))
     fig.update_layout(
         xaxis_title="Transaction Count",
-        width=700,
+        width=500,
         height=700,
+        legend={
+            "xanchor": "left",
+            "x": 0.01,
+            "yanchor": "top",
+            "y": 0.99,
+        },
     )
 
     figure_path = os.path.join(figures, "neondb.png")
