@@ -1,0 +1,25 @@
+Policy,TestCase,TransactionCount,Duration
+duckdb-serial,Long Update,10,73.57724ms
+duckdb-serial,Short Insert,10,16.137806ms
+duckdb-serial,Select Scan,10,40.84368ms
+duckdb-serial,Select Join,10,45.071962ms
+duckdb-serial,Long Update,25,194.029472ms
+duckdb-serial,Short Insert,25,37.314224ms
+duckdb-serial,Select Scan,25,152.19601ms
+duckdb-serial,Select Join,25,56.196356ms
+duckdb-serial,Select Scan,50,218.164098ms
+duckdb-serial,Select Join,50,113.797571ms
+duckdb-serial,Long Update,50,351.52563ms
+duckdb-serial,Short Insert,50,56.368067ms
+duckdb-serial,Select Join,100,226.841888ms
+duckdb-serial,Long Update,100,976.681008ms
+duckdb-serial,Short Insert,100,156.614512ms
+duckdb-serial,Select Scan,100,405.092036ms
+duckdb-serial,Select Join,200,616.683758ms
+duckdb-serial,Long Update,200,1.607521047s
+duckdb-serial,Short Insert,200,194.514926ms
+duckdb-serial,Select Scan,200,791.309995ms
+duckdb-serial,Long Update,500,3.666846702s
+duckdb-serial,Short Insert,500,647.991467ms
+duckdb-serial,Select Scan,500,1.972916243s
+duckdb-serial,Select Join,500,1.089474184s
