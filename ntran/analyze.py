@@ -149,18 +149,36 @@ def create_duckdb_figures(results: str, figures: str):
     
     df = pd.concat(policy_dfs)
     df["Duration (ms)"] = df["Duration"].apply(convert_duration_to_milliseconds)
-    max_duration = df["Duration (ms)"].max()
 
-    fig = px.scatter(
-        df,
-        x="TransactionCount",
-        y="Duration (ms)",
-        color="Policy",
-        facet_row="TestCase",
-        range_y=(0, max_duration+(max_duration*.1))
-    )
+    test_cases = ["Long Update", "Short Insert", "Select Scan", "Select Join"]
+    fig = make_subplots(rows=4, cols=1, subplot_titles=test_cases)
+
+    colors = px.colors.qualitative.Set1
+
+    for i, testcase in enumerate(test_cases):
+        curr_df = df[df["TestCase"] == testcase]
+        for j, policy_df in curr_df.groupby(["Policy"]):
+            policy = j[0]
+            color = colors[0] if policy == "duckdb-parallel" else colors[1]
+            fig.append_trace(
+                po.Scatter(
+                    x=policy_df["TransactionCount"],
+                    y=policy_df["Duration (ms)"],
+                    line={
+                        "color": color,
+                    },
+                    name=policy,
+                    legendgroup="line_group",
+                    showlegend=i<1,
+                ),
+                row=i+1,
+                col=1
+            )
+
     fig.update_layout(
         xaxis_title="Transaction Count",
+        xaxis_title_standoff=450,
+        yaxis_title="Duration (ms)",
         width=500,
         height=700,
         legend={
