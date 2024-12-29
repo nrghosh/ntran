@@ -4,6 +4,8 @@ import logging
 import os
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as po
+from plotly.subplots import make_subplots
 
 def get_latest_csv(policy: str, directory: str):
     g = os.path.join(directory, f"{policy}*.csv")
@@ -71,7 +73,8 @@ def create_neondb_figures(results: str, figures: str):
         y="Duration (secs)",
         color="Policy",
         facet_row="TestCase",
-        range_y=(0, max_duration+(max_duration*.1)))
+        range_y=(0, max_duration+(max_duration*.1))
+    )
     fig.update_layout(
         xaxis_title="Transaction Count",
         width=500,
@@ -87,49 +90,53 @@ def create_neondb_figures(results: str, figures: str):
     figure_path = os.path.join(figures, "neondb.png")
     fig.write_image(figure_path)
 
-def create_other_figures(results: str, figures: str):
-    policies = [
-        "duckdb-parallel",
-        "duckdb-serial",
-        "serial-snapshot",
-    ]
+def create_postgres_figures(results: str, figures: str):
     policy_dfs = []
+    policies = ["serial-snapshot"]
+    filename = "postgres.png"
     for policy in policies:
         csv = get_latest_csv(policy, results)
         if csv:
             policy_dfs.append(pd.read_csv(csv))
 
     if not policy_dfs:
-        logging.log(logging.WARNING, "no results found for duckdb or serial-snapshot policies")
+        logging.log(logging.WARNING, "no results found for postgres policies")
         return
     
     df = pd.concat(policy_dfs)
-    df["Duration"] = df["Duration"].apply(convert_duration_to_milliseconds)
-    max_duration = df["Duration"].max()
+    df["Duration (ms)"] = df["Duration"].apply(convert_duration_to_milliseconds)
 
-    fig = px.scatter(
-        df,
-        x="TransactionCount",
-        y="Duration",
-        color="Policy",
-        facet_col="TestCase",
-        range_y=(0, max_duration+(max_duration*.1)))
+    fig = make_subplots(rows=4, cols=1)
+
+    for i, testcase in enumerate(["Long Update", "Short Insert", "Select Scan", "Select Join"]):
+        curr_df = df[df["TestCase"] == testcase]
+        fig.append_trace(
+            po.Scatter(
+                x=curr_df["TransactionCount"],
+                y=curr_df["Duration (ms)"],
+                name=testcase,
+            ),
+            row=i+1,
+            col=1
+        )
+
     fig.update_layout(
         xaxis_title="Transaction Count",
-        yaxis_title="Duration (milliseconds)",
-        width=1000,
-        height=500,
+        xaxis_title_standoff=450,
+        yaxis_title="Duration (ms)",
+        width=500,
+        height=700,
     )
 
-    figure_path = os.path.join(figures, "duckdb_and_serial.png")
+    figure_path = os.path.join(figures, filename)
     fig.write_image(figure_path)
 
-def create_duckdb_only_figures(results: str, figures: str):
+def create_duckdb_figures(results: str, figures: str):
     policies = [
         "duckdb-parallel",
         "duckdb-serial",
-        # "serial-snapshot",
     ]
+    filename="duckdb.png"
     policy_dfs = []
     for policy in policies:
         csv = get_latest_csv(policy, results)
@@ -137,28 +144,34 @@ def create_duckdb_only_figures(results: str, figures: str):
             policy_dfs.append(pd.read_csv(csv))
 
     if not policy_dfs:
-        logging.log(logging.WARNING, "no results found for duckdb parallel or serial policies")
+        logging.log(logging.WARNING, "no results found for duckdb policies")
         return
     
     df = pd.concat(policy_dfs)
-    df["Duration"] = df["Duration"].apply(convert_duration_to_milliseconds)
-    max_duration = df["Duration"].max()
+    df["Duration (ms)"] = df["Duration"].apply(convert_duration_to_milliseconds)
+    max_duration = df["Duration (ms)"].max()
 
     fig = px.scatter(
         df,
         x="TransactionCount",
-        y="Duration",
+        y="Duration (ms)",
         color="Policy",
-        facet_col="TestCase",
-        range_y=(0, max_duration+(max_duration*.1)))
+        facet_row="TestCase",
+        range_y=(0, max_duration+(max_duration*.1))
+    )
     fig.update_layout(
         xaxis_title="Transaction Count",
-        yaxis_title="Duration (milliseconds)",
-        width=1000,
-        height=500,
+        width=500,
+        height=700,
+        legend={
+            "xanchor": "left",
+            "x": 0.01,
+            "yanchor": "top",
+            "y": 0.99,
+        },
     )
 
-    figure_path = os.path.join(figures, "duckdb_only.png")
+    figure_path = os.path.join(figures, filename)
     fig.write_image(figure_path)
 
 if __name__ == "__main__":
@@ -178,5 +191,5 @@ if __name__ == "__main__":
     as a result, we separate out the figures.
     """
     create_neondb_figures(args.results, args.figures)
-    create_other_figures(args.results, args.figures)
-    create_duckdb_only_figures(args.results, args.figures)
+    create_postgres_figures(args.results, args.figures)
+    create_duckdb_figures(args.results, args.figures)
